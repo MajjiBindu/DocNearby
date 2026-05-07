@@ -45,3 +45,7 @@ export const appointmentApi = {
   updateStatus: (id, status) => unwrap(api.patch(`/appointments/${id}/status`, { status })),
 }
 
+export const labApi = {
+  list: (params) => unwrap(api.get('/labs', { params })),
+  get: (id) => unwrap(api.get(`/labs/${id}`)),
+}
