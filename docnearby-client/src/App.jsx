@@ -8,6 +8,7 @@ import BookAppointment from './pages/BookAppointment.jsx'
 import PatientDashboard from './pages/PatientDashboard.jsx'
 import DoctorDashboard from './pages/DoctorDashboard.jsx'
 import Login from './pages/Login.jsx'
+import NearbyLabs from './pages/NearbyLabs.jsx'
 import NotFound from './pages/NotFound.jsx'
 import ProtectedRoute from './components/common/ProtectedRoute.jsx'
 
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/search" element={<Search />} />
           <Route path="/doctors/:id" element={<DoctorProfile />} />
           <Route path="/book/:id" element={<BookAppointment />} />
+          <Route path="/labs" element={<NearbyLabs />} />
           <Route path="/login" element={<Login />} />
 
           <Route

@@ -49,3 +49,12 @@ export const labApi = {
   list: (params) => unwrap(api.get('/labs', { params })),
   get: (id) => unwrap(api.get(`/labs/${id}`)),
 }
+
+export const reviewApi = {
+  create: (payload) => unwrap(api.post('/reviews', payload)),
+  byDoctor: (doctorId) => unwrap(api.get(`/reviews/doctor/${doctorId}`)),
+}
+
+export const symptomApi = {
+  suggest: (symptoms) => unwrap(api.post('/symptoms/suggest', { symptoms })),
+}
