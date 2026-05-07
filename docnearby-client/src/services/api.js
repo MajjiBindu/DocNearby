@@ -59,3 +59,10 @@ export const labApi = {
   list: (params) => unwrap(api.get('/labs', { params })),
   get: (id) => unwrap(api.get(`/labs/${id}`)),
 }
+
+export const adminApi = {
+  pendingDoctors: () => unwrap(api.get('/admin/doctors/pending')),
+  verifyDoctor: (id) => unwrap(api.patch(`/admin/doctors/${id}/verify`)),
+  allAppointments: (params) => unwrap(api.get('/admin/appointments', { params })),
+  deleteReview: (id) => unwrap(api.delete(`/admin/reviews/${id}`)),
+}

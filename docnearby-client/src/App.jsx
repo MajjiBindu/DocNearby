@@ -9,6 +9,7 @@ import PatientDashboard from './pages/PatientDashboard.jsx'
 import DoctorDashboard from './pages/DoctorDashboard.jsx'
 import Login from './pages/Login.jsx'
 import NearbyLabs from './pages/NearbyLabs.jsx'
+import AdminDashboard from './pages/AdminDashboard.jsx'
 import NotFound from './pages/NotFound.jsx'
 import ProtectedRoute from './components/common/ProtectedRoute.jsx'
 
@@ -38,6 +39,15 @@ export default function App() {
             element={
               <ProtectedRoute roles={['doctor']}>
                 <DoctorDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute roles={['admin']}>
+                <AdminDashboard />
               </ProtectedRoute>
             }
           />
