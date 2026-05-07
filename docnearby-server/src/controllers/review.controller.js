@@ -10,6 +10,11 @@ function fail(res, status, message, error = '') {
   return res.status(status).json({ success: false, data: {}, message, error })
 }
 
+/**
+ * Create a new review for a doctor
+ * POST /api/reviews
+ * Only patients can review
+ */
 export async function createReview(req, res) {
   const { doctorId, rating, comment } = req.body
   const patientId = req.user.userId
@@ -22,7 +27,7 @@ export async function createReview(req, res) {
     return fail(res, 400, 'Rating must be between 1 and 5', 'invalid_rating')
   }
 
-  // Check for existing review
+  // Prevent duplicate reviews
   const existing = await Review.findOne({ patientId, doctorId })
   if (existing) {
     return fail(res, 409, 'You have already reviewed this doctor', 'conflict')
@@ -35,7 +40,7 @@ export async function createReview(req, res) {
     comment,
   })
 
-  // Recalculate Doctor rating and reviewCount
+  // Recalculate Doctor rating and reviewCount using aggregation pipeline
   const stats = await Review.aggregate([
     { $match: { doctorId: new mongoose.Types.ObjectId(doctorId) } },
     {
@@ -57,6 +62,11 @@ export async function createReview(req, res) {
   return ok(res, { review }, 'Review created successfully')
 }
 
+/**
+ * Get all reviews for a specific doctor
+ * GET /api/reviews/doctor/:doctorId
+ * Public access
+ */
 export async function getDoctorReviews(req, res) {
   const { doctorId } = req.params
 

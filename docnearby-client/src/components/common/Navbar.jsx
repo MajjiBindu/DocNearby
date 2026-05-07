@@ -6,11 +6,13 @@ import translations from '../../utils/i18n.js'
 export default function Navbar() {
   const { token, user, logout } = useAuth()
   const navigate = useNavigate()
+  
+  // Initialize language from localStorage or default to 'en'
   const [lang, setLang] = useState(() => localStorage.getItem('dn_lang') || 'en')
 
   useEffect(() => {
     localStorage.setItem('dn_lang', lang)
-    // Dispatch a custom event so other components (like Home) can update if they are on the same page
+    // Dispatch a custom event so other components (like Home) can react to language changes
     window.dispatchEvent(new Event('languageChange'))
   }, [lang])
 
@@ -24,30 +26,46 @@ export default function Navbar() {
             {t.brand}
           </Link>
           
-          <div className="flex items-center gap-2 text-xs font-medium border rounded px-2 py-1">
-            <button onClick={() => setLang('en')} className={lang === 'en' ? 'text-slate-900' : 'text-slate-400'}>EN</button>
-            <span className="text-slate-300">|</span>
-            <button onClick={() => setLang('hi')} className={lang === 'hi' ? 'text-slate-900' : 'text-slate-400'}>हिं</button>
-            <span className="text-slate-300">|</span>
-            <button onClick={() => setLang('te')} className={lang === 'te' ? 'text-slate-900' : 'text-slate-400'}>తె</button>
+          {/* Language Switcher */}
+          <div className="flex items-center gap-2 text-xs font-medium border rounded-lg px-2 py-1 bg-slate-50/50">
+            <button 
+              onClick={() => setLang('en')} 
+              className={`transition-colors ${lang === 'en' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              EN
+            </button>
+            <span className="text-slate-200">|</span>
+            <button 
+              onClick={() => setLang('hi')} 
+              className={`transition-colors ${lang === 'hi' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              हिं
+            </button>
+            <span className="text-slate-200">|</span>
+            <button 
+              onClick={() => setLang('te')} 
+              className={`transition-colors ${lang === 'te' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              తె
+            </button>
           </div>
         </div>
 
-        <nav className="flex items-center gap-4 text-sm">
-          <NavLink to="/search" className="text-slate-700 hover:text-slate-900">
+        <nav className="flex items-center gap-6 text-sm">
+          <NavLink to="/search" className={({isActive}) => `transition-colors hover:text-indigo-600 ${isActive ? 'text-indigo-600 font-bold' : 'text-slate-600'}`}>
             {t.search}
           </NavLink>
-          <NavLink to="/labs" className="text-slate-700 hover:text-slate-900">
+          <NavLink to="/labs" className={({isActive}) => `transition-colors hover:text-indigo-600 ${isActive ? 'text-indigo-600 font-bold' : 'text-slate-600'}`}>
             {t.nearby}
           </NavLink>
           
           {token ? (
             <>
-              <NavLink to={user?.role === 'doctor' ? '/doctor' : '/patient'} className="text-slate-700 hover:text-slate-900">
+              <NavLink to={user?.role === 'doctor' ? '/doctor' : '/patient'} className="text-slate-600 hover:text-indigo-600 transition-colors">
                 {t.dashboard}
               </NavLink>
               <button
-                className="rounded-md border px-3 py-1.5 hover:bg-slate-50"
+                className="rounded-xl border border-slate-200 px-4 py-1.5 text-slate-700 hover:bg-slate-50 transition-all active:scale-95"
                 onClick={() => {
                   logout()
                   navigate('/login')
@@ -58,7 +76,7 @@ export default function Navbar() {
               </button>
             </>
           ) : (
-            <NavLink to="/login" className="rounded-md bg-slate-900 text-white px-3 py-1.5">
+            <NavLink to="/login" className="rounded-xl bg-slate-900 text-white px-5 py-1.5 hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200">
               {t.login}
             </NavLink>
           )}
@@ -67,4 +85,3 @@ export default function Navbar() {
     </header>
   )
 }
-

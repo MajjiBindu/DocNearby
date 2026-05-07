@@ -11,7 +11,7 @@ const reviewSchema = new mongoose.Schema(
   { versionKey: false },
 )
 
-// One review per patient per doctor
+// Enforce one review per patient per doctor
 reviewSchema.index({ patientId: 1, doctorId: 1 }, { unique: true })
 
 export const Review = mongoose.model('Review', reviewSchema)

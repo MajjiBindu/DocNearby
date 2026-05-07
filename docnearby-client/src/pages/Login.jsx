@@ -18,20 +18,37 @@ export default function Login() {
   const [step, setStep] = useState('phone') // phone | otp
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [phoneError, setPhoneError] = useState('')
 
   const cleanedPhone = useMemo(() => String(phone || '').replace(/\D/g, '').slice(0, 10), [phone])
 
+  const handlePhoneChange = (val) => {
+    setPhone(val)
+    if (phoneError) setPhoneError('')
+    if (message) setMessage('')
+  }
+
   const send = async () => {
+    if (!cleanedPhone) {
+      setPhoneError('Phone number is required.')
+      return
+    }
+    if (cleanedPhone.length !== 10) {
+      setPhoneError('Please enter a valid 10-digit phone number.')
+      return
+    }
+
     setLoading(true)
     setMessage('')
+    setPhoneError('')
     try {
       const res = await authApi.sendOtp({ phone: cleanedPhone, role })
       if (res?.success) {
         setStep('otp')
-        setMessage(res.message || 'OTP sent')
-      } else setMessage(res?.message || 'Failed to send OTP')
+        setMessage(res.message || 'OTP sent successfully.')
+      } else setMessage(res?.message || 'Failed to send OTP. Please try again.')
     } catch (e) {
-      setMessage(e?.message || 'Failed to send OTP')
+      setMessage(e?.response?.data?.message || e?.message || 'Failed to send OTP.')
     } finally {
       setLoading(false)
     }
@@ -85,7 +102,10 @@ export default function Login() {
         </div>
 
         {step === 'phone' ? (
-          <PhoneForm phone={cleanedPhone} setPhone={setPhone} onSend={send} disabled={loading} />
+          <div className="space-y-1">
+            <PhoneForm phone={cleanedPhone} setPhone={handlePhoneChange} onSend={send} disabled={loading} />
+            {phoneError && <p className="text-xs font-medium text-red-600 animate-in fade-in slide-in-from-top-1">{phoneError}</p>}
+          </div>
         ) : (
           <div className="space-y-3">
             <OtpInput otp={otp} setOtp={setOtp} />

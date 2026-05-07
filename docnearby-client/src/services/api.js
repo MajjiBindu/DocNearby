@@ -45,10 +45,6 @@ export const appointmentApi = {
   updateStatus: (id, status) => unwrap(api.patch(`/appointments/${id}/status`, { status })),
 }
 
-export const labApi = {
-  list: (params) => unwrap(api.get('/labs', { params })),
-  get: (id) => unwrap(api.get(`/labs/${id}`)),
-}
 
 export const reviewApi = {
   create: (payload) => unwrap(api.post('/reviews', payload)),
@@ -57,4 +53,9 @@ export const reviewApi = {
 
 export const symptomApi = {
   suggest: (symptoms) => unwrap(api.post('/symptoms/suggest', { symptoms })),
+}
+
+export const labApi = {
+  list: (params) => unwrap(api.get('/labs', { params })),
+  get: (id) => unwrap(api.get(`/labs/${id}`)),
 }

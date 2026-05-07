@@ -16,9 +16,14 @@ const symptomMap = {
   tooth: ['Dentist'],
 }
 
+/**
+ * Suggest specialties based on symptoms
+ * POST /api/symptoms/suggest
+ */
 export async function suggestSpecialties(req, res) {
   const symptomsStr = String(req.body?.symptoms || '').toLowerCase()
-  // Split by space, comma, or period
+  
+  // Split by common delimiters: spaces, commas, periods
   const words = symptomsStr.split(/[ ,./]+/).filter(Boolean)
 
   const specialtiesSet = new Set()
@@ -29,6 +34,7 @@ export async function suggestSpecialties(req, res) {
     }
   }
 
+  // Deduplicate and default if no matches
   let result = Array.from(specialtiesSet)
   if (result.length === 0) {
     result = ['General Physician']
@@ -36,8 +42,8 @@ export async function suggestSpecialties(req, res) {
 
   return res.json({
     success: true,
-    data: { specialties: result },
-    message: 'OK',
-    error: '',
+    data: {
+      specialties: result
+    }
   })
 }

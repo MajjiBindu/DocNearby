@@ -56,6 +56,11 @@ export default function BookAppointment() {
   const canSubmit = useMemo(() => !!date && !!slot && !submitting, [date, slot, submitting])
 
   const confirm = async () => {
+    if (!date || !slot) {
+      setMessage('Please select both a date and a time slot.')
+      return
+    }
+
     setSubmitting(true)
     setMessage('')
     try {
@@ -75,16 +80,16 @@ export default function BookAppointment() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 space-y-6">
-      <div className="rounded-xl border bg-white p-6">
-        <h1 className="text-xl font-semibold text-slate-900">Book Appointment</h1>
-        <p className="mt-1 text-sm text-slate-600">Pick a date and time slot.</p>
+      <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <h1 className="text-2xl font-bold text-slate-900">Book Appointment</h1>
+        <p className="mt-1 text-sm text-slate-500">Select your preferred date and time slot below.</p>
 
-        <div className="mt-6 grid gap-6">
+        <div className="mt-8 grid gap-8">
           <BookingForm
             date={date}
-            setDate={setDate}
+            setDate={(val) => { setDate(val); setMessage(''); }}
             slot={slot}
-            setSlot={setSlot}
+            setSlot={(val) => { setSlot(val); setMessage(''); }}
             onConfirm={confirm}
             disabled={!canSubmit}
           />
