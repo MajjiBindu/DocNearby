@@ -120,7 +120,7 @@ export default function AdminDashboard() {
                     <div key={doc._id} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
                         <h3 className="text-lg font-bold text-slate-900">{doc.userId?.name}</h3>
-                        <p className="text-sm text-slate-600">{doc.specialty} • {doc.userId?.phone}</p>
+                        <p className="text-sm text-slate-600">{doc.specialty} • {doc.userId?.email}</p>
                         <p className="text-xs text-slate-500 mt-1">
                           {doc.clinicId?.name}, {doc.clinicId?.city}
                         </p>
@@ -155,7 +155,7 @@ export default function AdminDashboard() {
                         <tr key={apt._id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-6 py-4">
                             <p className="text-sm font-bold text-slate-900">{apt.patientId?.name}</p>
-                            <p className="text-xs text-slate-500">{apt.patientId?.phone}</p>
+                            <p className="text-xs text-slate-500">{apt.patientId?.email}</p>
                           </td>
                           <td className="px-6 py-4 text-sm text-slate-600 font-medium">
                             {apt.doctorId?.userId?.name || 'Doctor'}

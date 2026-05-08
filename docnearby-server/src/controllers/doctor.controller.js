@@ -1,6 +1,7 @@
 import { Doctor } from "../models/Doctor.js";
 import { Clinic } from "../models/Clinic.js";
 import { Appointment } from "../models/Appointment.js";
+import { DAYS } from "../config/constants.js";
 
 function ok(res, data = {}, message = "") {
   return res.json({ success: true, data, message, error: "" });
@@ -71,7 +72,7 @@ export async function listDoctors(req, res) {
   }
 
   const doctors = await Doctor.find(doctorQuery)
-    .populate("userId", "name phone role")
+    .populate("userId", "name email role")
     .populate("clinicId", "name address city state pincode location phone")
     .limit(100);
 
@@ -80,7 +81,7 @@ export async function listDoctors(req, res) {
 
 export async function getDoctor(req, res) {
   const doctor = await Doctor.findById(req.params.id)
-    .populate("userId", "name phone role")
+    .populate("userId", "name email role")
     .populate("clinicId", "name address city state pincode location phone");
   if (!doctor) return fail(res, 404, "Doctor not found", "doctor_not_found");
   return ok(res, { doctor }, "OK");
@@ -88,7 +89,7 @@ export async function getDoctor(req, res) {
 
 export async function getMyDoctor(req, res) {
   const doctor = await Doctor.findOne({ userId: req.user.userId })
-    .populate("userId", "name phone role")
+    .populate("userId", "name email role")
     .populate("clinicId", "name address city state pincode location phone");
   if (!doctor)
     return fail(
@@ -221,7 +222,7 @@ export async function updateAvailability(req, res) {
   await doctor.save();
 
   const updated = await Doctor.findById(doctor._id)
-    .populate("userId", "name phone role")
+    .populate("userId", "name email role")
     .populate("clinicId", "name address city state pincode location phone");
 
   return ok(res, { doctor: updated }, "Availability updated successfully");
@@ -253,7 +254,7 @@ export async function updateDoctor(req, res) {
   await doctor.save();
 
   const updated = await Doctor.findById(doctor._id)
-    .populate("userId", "name phone role")
+    .populate("userId", "name email role")
     .populate("clinicId", "name address city state pincode location phone");
 
   return ok(res, { doctor: updated }, "Updated");

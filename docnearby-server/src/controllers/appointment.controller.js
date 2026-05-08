@@ -48,13 +48,12 @@ export async function createAppointment(req, res) {
     date: start,
     slot,
     status: 'pending',
-    smsConfirmationSent: false,
   })
 
   const populated = await Appointment.findById(appt._id)
     .populate({
       path: 'doctorId',
-      populate: [{ path: 'userId', select: 'name phone role' }, { path: 'clinicId' }],
+      populate: [{ path: 'userId', select: 'name email role' }, { path: 'clinicId' }],
     })
     .populate('clinicId')
 
@@ -67,7 +66,7 @@ export async function myAppointments(req, res) {
     .sort({ date: -1, createdAt: -1 })
     .populate({
       path: 'doctorId',
-      populate: [{ path: 'userId', select: 'name phone role' }, { path: 'clinicId' }],
+      populate: [{ path: 'userId', select: 'name email role' }, { path: 'clinicId' }],
     })
     .populate('clinicId')
 
@@ -81,11 +80,11 @@ export async function doctorAppointments(req, res) {
 
   const appointments = await Appointment.find({ doctorId: doctor._id })
     .sort({ date: -1, createdAt: -1 })
-    .populate('patientId', 'name phone role')
+    .populate('patientId', 'name email role')
     .populate('clinicId')
     .populate({
       path: 'doctorId',
-      populate: [{ path: 'userId', select: 'name phone role' }],
+      populate: [{ path: 'userId', select: 'name email role' }],
     })
 
   return ok(res, { appointments }, 'OK')
@@ -117,13 +116,12 @@ export async function updateAppointmentStatus(req, res) {
   await appt.save()
 
   const updated = await Appointment.findById(appt._id)
-    .populate('patientId', 'name phone role')
+    .populate('patientId', 'name email role')
     .populate('clinicId')
     .populate({
       path: 'doctorId',
-      populate: [{ path: 'userId', select: 'name phone role' }, { path: 'clinicId' }],
+      populate: [{ path: 'userId', select: 'name email role' }, { path: 'clinicId' }],
     })
 
   return ok(res, { appointment: updated }, 'Updated')
 }
-

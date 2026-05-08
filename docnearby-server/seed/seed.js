@@ -1,6 +1,7 @@
 import dotenv from 'dotenv'
 dotenv.config()
 
+import bcrypt from 'bcryptjs'
 import mongoose from 'mongoose'
 import { connectDb } from '../src/config/db.js'
 import { User } from '../src/models/User.js'
@@ -143,12 +144,13 @@ async function main() {
     },
   ])
 
+  const seededPassword = await bcrypt.hash('Password@123', 12)
   const doctorUsers = await User.insertMany([
-    { phone: '9000000001', name: 'Dr. Ananya Rao', role: 'doctor' },
-    { phone: '9000000002', name: 'Dr. Mohan Kumar', role: 'doctor' },
-    { phone: '9000000003', name: 'Dr. Priya Sharma', role: 'doctor' },
-    { phone: '9000000004', name: 'Dr. Farhan Ali', role: 'doctor' },
-    { phone: '9000000005', name: 'Dr. S. Iyer', role: 'doctor' },
+    { email: 'ananya.rao@docnearby.local', password: seededPassword, name: 'Dr. Ananya Rao', role: 'doctor', isEmailVerified: true, emailVerifiedAt: new Date() },
+    { email: 'mohan.kumar@docnearby.local', password: seededPassword, name: 'Dr. Mohan Kumar', role: 'doctor', isEmailVerified: true, emailVerifiedAt: new Date() },
+    { email: 'priya.sharma@docnearby.local', password: seededPassword, name: 'Dr. Priya Sharma', role: 'doctor', isEmailVerified: true, emailVerifiedAt: new Date() },
+    { email: 'farhan.ali@docnearby.local', password: seededPassword, name: 'Dr. Farhan Ali', role: 'doctor', isEmailVerified: true, emailVerifiedAt: new Date() },
+    { email: 's.iyer@docnearby.local', password: seededPassword, name: 'Dr. S. Iyer', role: 'doctor', isEmailVerified: true, emailVerifiedAt: new Date() },
   ])
 
   const specialties = [
@@ -197,9 +199,9 @@ async function main() {
   }
 
   const patientUsers = await User.insertMany([
-    { phone: '9100000001', name: 'Suresh', role: 'patient' },
-    { phone: '9100000002', name: 'Asha', role: 'patient' },
-    { phone: '9100000003', name: 'Ravi', role: 'patient' },
+    { email: 'suresh@docnearby.local', password: seededPassword, name: 'Suresh', role: 'patient', isEmailVerified: true, emailVerifiedAt: new Date() },
+    { email: 'asha@docnearby.local', password: seededPassword, name: 'Asha', role: 'patient', isEmailVerified: true, emailVerifiedAt: new Date() },
+    { email: 'ravi@docnearby.local', password: seededPassword, name: 'Ravi', role: 'patient', isEmailVerified: true, emailVerifiedAt: new Date() },
   ])
 
   const statuses = ['pending', 'confirmed', 'completed', 'cancelled']
@@ -216,7 +218,6 @@ async function main() {
       date: addDays(base, randPick([-3, -1, 0, 1, 2, 5, 7])),
       slot: randPick(slots),
       status: randPick(statuses),
-      smsConfirmationSent: false,
     })
   }
   const createdAppointments = await Appointment.insertMany(appts)
@@ -238,4 +239,3 @@ main().catch((err) => {
   console.error('Seed failed', err)
   process.exit(1)
 })
-

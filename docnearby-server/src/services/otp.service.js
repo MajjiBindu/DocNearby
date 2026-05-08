@@ -1,76 +1,117 @@
+import bcrypt from "bcryptjs";
 import { env } from "../config/constants.js";
-import { sendOtpSms, verifyOtpSms, isMsg91Configured } from "./sms.service.js";
 
 const store = new Map();
 const OTP_ATTEMPTS_LIMIT = 5;
 
-function normalizeMobile(mobile) {
-  return String(mobile || "")
-    .replace(/\D/g, "")
-    .slice(-10);
+export function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
 }
 
 function nowMs() {
   return Date.now();
 }
 
-function generateOtp() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+export function generateOtp() {
+  const otp = String(Math.floor(100000 + Math.random() * 900000));
+  console.log("[OTP] OTP generated successfully");
+  return otp;
 }
 
 function expiryMs() {
   return Number(env("OTP_EXPIRY_MINUTES", 5)) * 60 * 1000;
 }
 
-export async function sendOtp(mobile) {
-  const normalized = normalizeMobile(mobile);
-  if (!normalized || normalized.length !== 10) {
-    throw new Error("Invalid mobile number");
-  }
-
-  const otp = generateOtp();
-  const expiresAt = new Date(nowMs() + expiryMs());
-  store.set(normalized, { otp, expiresAt, attempts: 0 });
-
-  await sendOtpSms(normalized, otp);
-  console.log(
-    `[OTP] sent mobile=91${normalized} expiresAt=${expiresAt.toISOString()}`,
-  );
-
-  return { mobile: normalized, expiresAt };
+function keyFor(purpose, email) {
+  return `${purpose}:${normalizeEmail(email)}`;
 }
 
-export async function verifyOtp(mobile, otp) {
-  const normalized = normalizeMobile(mobile);
-  if (!normalized || normalized.length !== 10) {
-    return { ok: false, reason: "invalid_mobile" };
-  }
+export async function createOtpSession(purpose, email, data = {}) {
+  try {
+    const normalized = normalizeEmail(email);
+    console.log("[OTP] Creating OTP session", { purpose, email: normalized });
+    if (!normalized) throw new Error("Email is required");
 
-  if (isMsg91Configured()) {
-    const result = await verifyOtpSms(normalized, otp);
-    if (!result.ok) {
-      return { ok: false, reason: result.reason || "invalid_otp" };
+    const otp = generateOtp();
+    const otpHash = await bcrypt.hash(otp, 10);
+    console.log("[OTP] OTP hashing success", { purpose, email: normalized });
+
+    const expiresAt = new Date(nowMs() + expiryMs());
+    store.set(keyFor(purpose, normalized), {
+      email: normalized,
+      otpHash,
+      expiresAt,
+      attempts: 0,
+      data,
+    });
+    console.log("[OTP] Temporary OTP session save success", {
+      purpose,
+      email: normalized,
+      expiresAt: expiresAt.toISOString(),
+    });
+
+    return { email: normalized, otp, otpHash, expiresAt };
+  } catch (error) {
+    console.error("[ERROR] [OTP] Failed to create OTP session:", error);
+    throw error;
+  }
+}
+
+export async function verifyOtpSession(purpose, email, otp) {
+  try {
+    const normalized = normalizeEmail(email);
+    const key = keyFor(purpose, normalized);
+    console.log("[OTP] Verifying OTP session", { purpose, email: normalized });
+    const record = store.get(key);
+    if (!record) return { ok: false, reason: "no_otp" };
+
+    if (nowMs() > record.expiresAt) {
+      store.delete(key);
+      return { ok: false, reason: "expired" };
     }
-    return { ok: true };
+
+    if (record.attempts >= OTP_ATTEMPTS_LIMIT) {
+      return { ok: false, reason: "max_attempts" };
+    }
+
+    record.attempts += 1;
+    const matches = await bcrypt.compare(String(otp || ""), record.otpHash);
+    if (!matches) {
+      console.log("[OTP] Invalid OTP", { purpose, email: normalized });
+      return { ok: false, reason: "invalid" };
+    }
+
+    console.log("[OTP] OTP verified successfully", { purpose, email: normalized });
+    return { ok: true, data: record.data };
+  } catch (error) {
+    console.error("[ERROR] [OTP] Failed to verify OTP session:", error);
+    throw error;
   }
+}
 
-  const record = store.get(normalized);
-  if (!record) return { ok: false, reason: "no_otp" };
+export function consumeOtpSession(purpose, email) {
+  const normalized = normalizeEmail(email);
+  const deleted = store.delete(keyFor(purpose, normalized));
+  console.log("[OTP] OTP session consumed", {
+    purpose,
+    email: normalized,
+    deleted,
+  });
+  return deleted;
+}
 
-  if (nowMs() > record.expiresAt) {
-    store.delete(normalized);
-    return { ok: false, reason: "expired" };
+export function getOtpSession(purpose, email) {
+  try {
+    const normalized = normalizeEmail(email);
+    const record = store.get(keyFor(purpose, normalized));
+    if (!record) return null;
+    if (nowMs() > record.expiresAt) {
+      store.delete(keyFor(purpose, normalized));
+      return null;
+    }
+    return record;
+  } catch (error) {
+    console.error("[ERROR] [OTP] Failed to read OTP session:", error);
+    throw error;
   }
-
-  if (record.attempts >= OTP_ATTEMPTS_LIMIT) {
-    return { ok: false, reason: "max_attempts" };
-  }
-
-  record.attempts += 1;
-  if (String(otp) !== record.otp) {
-    return { ok: false, reason: "invalid" };
-  }
-
-  store.delete(normalized);
-  return { ok: true };
 }

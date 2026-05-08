@@ -6,8 +6,8 @@ Backend API for **DocNearby** — a location-based doctor & small clinic finder 
 
 - Node.js + Express
 - MongoDB + Mongoose (GeoJSON `2dsphere` index on `Clinic.location`)
-- JWT auth
-- Mock OTP (logged to console; stored in-memory)
+- JWT auth with email/password credentials
+- Email OTP verification through Nodemailer + Gmail SMTP
 
 ### Setup
 
@@ -23,8 +23,26 @@ See `.env.example`:
 - `MONGO_URI`
 - `JWT_SECRET`
 - `JWT_EXPIRY`
+- `EMAIL_USER`
+- `EMAIL_PASS`
 - `OTP_EXPIRY_MINUTES`
 - `CLIENT_URL`
+
+### Gmail SMTP notes
+
+Email OTP uses Nodemailer with Gmail SMTP:
+
+```js
+service: "gmail"
+auth: {
+  user: process.env.EMAIL_USER,
+  pass: process.env.EMAIL_PASS
+}
+```
+
+For Gmail accounts with 2-Step Verification enabled, `EMAIL_PASS` must be a Google App Password, not your normal Gmail password. Create one from Google Account -> Security -> App passwords, then put the 16-character app password in `.env`.
+
+The server validates `EMAIL_USER`, `EMAIL_PASS`, and `JWT_SECRET` at startup. If any are missing, startup fails with a readable `[ERROR] Missing required environment variables...` message instead of failing later during signup.
 
 ### Run locally
 
@@ -49,8 +67,11 @@ All API endpoints (except `/api/health`) return:
 
 #### Auth
 
-- `POST /api/auth/send-otp`
-- `POST /api/auth/verify-otp`
+- `POST /api/auth/signup/request-otp`
+- `POST /api/auth/signup/verify-otp`
+- `POST /api/auth/login/request-otp`
+- `POST /api/auth/login/verify-otp`
+- `POST /api/auth/resend-otp`
 - `GET /api/auth/me` (protected)
 
 #### Doctors
@@ -72,4 +93,3 @@ All API endpoints (except `/api/health`) return:
 - `GET /api/appointments/mine` (patient only)
 - `GET /api/appointments/doctor` (doctor only)
 - `PATCH /api/appointments/:id/status`
-

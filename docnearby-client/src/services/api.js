@@ -20,10 +20,16 @@ async function unwrap(promise) {
 }
 
 export const authApi = {
-  sendOtp: ({ phone, role }) =>
-    unwrap(api.post("/auth/send-otp", { phone, role })),
-  verifyOtp: ({ phone, otp, role, name }) =>
-    unwrap(api.post("/auth/verify-otp", { phone, otp, role, name })),
+  requestSignupOtp: ({ name, email, password, role }) =>
+    unwrap(api.post("/auth/signup/request-otp", { name, email, password, role })),
+  verifySignupOtp: ({ email, otp }) =>
+    unwrap(api.post("/auth/signup/verify-otp", { email, otp })),
+  requestLoginOtp: ({ email, password }) =>
+    unwrap(api.post("/auth/login/request-otp", { email, password })),
+  verifyLoginOtp: ({ email, otp }) =>
+    unwrap(api.post("/auth/login/verify-otp", { email, otp })),
+  resendOtp: ({ email, purpose }) =>
+    unwrap(api.post("/auth/resend-otp", { email, purpose })),
   me: () => unwrap(api.get("/auth/me")),
 };
 

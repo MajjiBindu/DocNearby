@@ -12,8 +12,7 @@ export default function OtpInput({ otp, setOtp }) {
         value={cleaned}
         onChange={(e) => setOtp(e.target.value)}
       />
-      <p className="text-xs text-slate-500">Mock OTP will be logged in the server console.</p>
+      <p className="text-xs text-slate-500">Enter the 6-digit code sent to your email. It expires in 5 minutes.</p>
     </div>
   )
 }
-

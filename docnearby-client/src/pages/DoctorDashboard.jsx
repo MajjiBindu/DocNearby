@@ -405,14 +405,14 @@ export default function DoctorDashboard() {
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
                                   strokeWidth={2}
-                                  d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                                  d="M16 12H8m8 0a4 4 0 10-8 0m8 0v1a2 2 0 104 0v-1a8 8 0 10-4 6.93"
                                 />
                               </svg>
                               <a
-                                href={`tel:${a.patientId?.phone}`}
+                                href={`mailto:${a.patientId?.email}`}
                                 className="text-xs font-medium text-indigo-500 transition-colors hover:text-indigo-700"
                               >
-                                {a.patientId?.phone || "No contact info"}
+                                {a.patientId?.email || "No contact info"}
                               </a>
                             </div>
                           </div>

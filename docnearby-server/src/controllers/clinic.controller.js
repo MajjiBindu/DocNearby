@@ -34,7 +34,7 @@ export async function listClinics(req, res) {
 export async function getClinic(req, res) {
   const clinic = await Clinic.findById(req.params.id).populate({
     path: 'doctors',
-    populate: [{ path: 'userId', select: 'name phone role' }],
+    populate: [{ path: 'userId', select: 'name email role' }],
   })
   if (!clinic) return fail(res, 404, 'Clinic not found', 'clinic_not_found')
   return ok(res, { clinic }, 'OK')
@@ -56,4 +56,3 @@ export async function createClinic(req, res) {
 
   return ok(res, { clinic }, 'Created')
 }
-

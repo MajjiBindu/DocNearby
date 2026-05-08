@@ -9,11 +9,9 @@ const appointmentSchema = new mongoose.Schema(
     date: { type: Date, required: true },
     slot: { type: String, required: true },
     status: { type: String, enum: APPOINTMENT_STATUSES, default: 'pending' },
-    smsConfirmationSent: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
   },
   { versionKey: false },
 )
 
 export const Appointment = mongoose.model('Appointment', appointmentSchema)
-

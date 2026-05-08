@@ -1,137 +1,248 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import PhoneForm from '../components/auth/PhoneForm.jsx'
 import OtpInput from '../components/auth/OtpInput.jsx'
 import Button from '../components/common/Button.jsx'
 import Input from '../components/common/Input.jsx'
 import { authApi } from '../services/api.js'
 import { useAuth } from '../hooks/useAuth.js'
 
+const initialForm = {
+  name: '',
+  email: '',
+  password: '',
+  role: 'patient',
+}
+
 export default function Login() {
   const navigate = useNavigate()
   const { setToken, setUser } = useAuth()
 
-  const [role, setRole] = useState('patient')
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
+  const [mode, setMode] = useState('login')
+  const [form, setForm] = useState(initialForm)
   const [otp, setOtp] = useState('')
-  const [step, setStep] = useState('phone') // phone | otp
+  const [step, setStep] = useState('credentials')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
-  const [phoneError, setPhoneError] = useState('')
+  const [error, setError] = useState('')
 
-  const cleanedPhone = useMemo(() => String(phone || '').replace(/\D/g, '').slice(0, 10), [phone])
+  const email = useMemo(() => form.email.trim().toLowerCase(), [form.email])
+  const otpPurpose = mode === 'signup' ? 'signup' : 'login'
 
-  const handlePhoneChange = (val) => {
-    setPhone(val)
-    if (phoneError) setPhoneError('')
-    if (message) setMessage('')
+  const updateForm = (field, value) => {
+    setForm((current) => ({ ...current, [field]: value }))
+    setError('')
+    setMessage('')
   }
 
-  const send = async () => {
-    if (!cleanedPhone) {
-      setPhoneError('Phone number is required.')
-      return
-    }
-    if (cleanedPhone.length !== 10) {
-      setPhoneError('Please enter a valid 10-digit phone number.')
+  const validateCredentials = () => {
+    if (mode === 'signup' && !form.name.trim()) return 'Full name is required.'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Enter a valid email address.'
+    if (form.password.length < 8) return 'Password must be at least 8 characters.'
+    return ''
+  }
+
+  const requestOtp = async () => {
+    const validationError = validateCredentials()
+    if (validationError) {
+      setError(validationError)
       return
     }
 
     setLoading(true)
+    setError('')
     setMessage('')
-    setPhoneError('')
     try {
-      const res = await authApi.sendOtp({ phone: cleanedPhone, role })
+      const res =
+        mode === 'signup'
+          ? await authApi.requestSignupOtp({
+              name: form.name.trim(),
+              email,
+              password: form.password,
+              role: form.role,
+            })
+          : await authApi.requestLoginOtp({ email, password: form.password })
+
       if (res?.success) {
         setStep('otp')
-        setMessage(res.message || 'OTP sent successfully.')
-      } else setMessage(res?.message || 'Failed to send OTP. Please try again.')
+        setOtp('')
+        setMessage(res.message || 'OTP sent to your email.')
+      } else {
+        setError(res?.message || 'Unable to send OTP.')
+      }
     } catch (e) {
-      setMessage(e?.response?.data?.message || e?.message || 'Failed to send OTP.')
+      setError(e?.response?.data?.message || e?.message || 'Unable to send OTP.')
     } finally {
       setLoading(false)
     }
   }
 
-  const verify = async () => {
+  const verifyOtp = async () => {
+    if (!/^\d{6}$/.test(otp)) {
+      setError('Enter the 6-digit OTP.')
+      return
+    }
+
     setLoading(true)
+    setError('')
     setMessage('')
     try {
-      const res = await authApi.verifyOtp({ phone: cleanedPhone, otp, role, name })
+      const res =
+        mode === 'signup'
+          ? await authApi.verifySignupOtp({ email, otp })
+          : await authApi.verifyLoginOtp({ email, otp })
+
       if (res?.success) {
+        const nextUser = res.data?.user || null
         setToken(res.data?.token || '')
-        setUser(res.data?.user || null)
-        navigate(role === 'doctor' ? '/doctor' : '/patient', { replace: true })
-      } else setMessage(res?.message || 'Invalid OTP')
+        setUser(nextUser)
+        navigate(nextUser?.role === 'doctor' ? '/doctor' : '/patient', { replace: true })
+      } else {
+        setError(res?.message || 'Invalid OTP.')
+      }
     } catch (e) {
-      setMessage(e?.message || 'Invalid OTP')
+      setError(e?.response?.data?.message || e?.message || 'Invalid OTP.')
     } finally {
       setLoading(false)
     }
+  }
+
+  const resendOtp = async () => {
+    setLoading(true)
+    setError('')
+    setMessage('')
+    try {
+      const res = await authApi.resendOtp({ email, purpose: otpPurpose })
+      setMessage(res?.message || 'OTP resent to your email.')
+    } catch (e) {
+      setError(e?.response?.data?.message || e?.message || 'Unable to resend OTP.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const switchMode = (nextMode) => {
+    setMode(nextMode)
+    setForm(initialForm)
+    setOtp('')
+    setStep('credentials')
+    setMessage('')
+    setError('')
   }
 
   return (
     <div className="mx-auto max-w-lg px-4 py-10">
-      <div className="rounded-2xl border bg-white p-6 shadow-sm space-y-5">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Login</h1>
-          <p className="mt-1 text-sm text-slate-600">Mock OTP login for patients and doctors.</p>
+      <div className="rounded-2xl border bg-white p-6 shadow-sm">
+        <div className="mb-5">
+          <h1 className="text-2xl font-semibold text-slate-900">
+            {mode === 'signup' ? 'Create your account' : 'Login'}
+          </h1>
+          <p className="mt-1 text-sm text-slate-600">
+            {step === 'otp'
+              ? `We sent a verification code to ${email}.`
+              : 'Use email, password, and email OTP verification.'}
+          </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-sm text-slate-700">Role</span>
-            <select
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              disabled={step === 'otp'}
-            >
-              <option value="patient">Patient</option>
-              <option value="doctor">Doctor</option>
-            </select>
-          </label>
-          <Input
-            label="Name (optional)"
-            placeholder="Your name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={step === 'otp'}
-          />
+        <div className="mb-5 grid grid-cols-2 rounded-md border border-slate-200 bg-slate-50 p-1">
+          <button
+            type="button"
+            onClick={() => switchMode('login')}
+            className={`rounded px-3 py-2 text-sm font-medium ${mode === 'login' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'}`}
+            disabled={loading}
+          >
+            Login
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode('signup')}
+            className={`rounded px-3 py-2 text-sm font-medium ${mode === 'signup' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'}`}
+            disabled={loading}
+          >
+            Sign up
+          </button>
         </div>
 
-        {step === 'phone' ? (
-          <div className="space-y-1">
-            <PhoneForm phone={cleanedPhone} setPhone={handlePhoneChange} onSend={send} disabled={loading} />
-            {phoneError && <p className="text-xs font-medium text-red-600 animate-in fade-in slide-in-from-top-1">{phoneError}</p>}
-          </div>
+        {step === 'credentials' ? (
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault()
+              requestOtp()
+            }}
+          >
+            {mode === 'signup' ? (
+              <>
+                <Input
+                  label="Full name"
+                  placeholder="Your full name"
+                  value={form.name}
+                  onChange={(e) => updateForm('name', e.target.value)}
+                  autoComplete="name"
+                />
+                <label className="block">
+                  <span className="mb-1 block text-sm text-slate-700">Role</span>
+                  <select
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                    value={form.role}
+                    onChange={(e) => updateForm('role', e.target.value)}
+                  >
+                    <option value="patient">Patient</option>
+                    <option value="doctor">Doctor</option>
+                  </select>
+                </label>
+              </>
+            ) : null}
+
+            <Input
+              label="Email"
+              placeholder="you@example.com"
+              type="email"
+              value={form.email}
+              onChange={(e) => updateForm('email', e.target.value)}
+              autoComplete="email"
+            />
+            <Input
+              label="Password"
+              placeholder="At least 8 characters"
+              type="password"
+              value={form.password}
+              onChange={(e) => updateForm('password', e.target.value)}
+              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+            />
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? 'Sending...' : 'Send email OTP'}
+            </Button>
+          </form>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <OtpInput otp={otp} setOtp={setOtp} />
-            <div className="flex gap-2">
-              <Button type="button" onClick={verify} disabled={loading}>
-                Verify OTP
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button type="button" onClick={verifyOtp} disabled={loading} className="flex-1">
+                {loading ? 'Verifying...' : 'Verify OTP'}
+              </Button>
+              <Button type="button" variant="secondary" onClick={resendOtp} disabled={loading}>
+                Resend
               </Button>
               <Button
                 type="button"
                 variant="secondary"
                 onClick={() => {
-                  setStep('phone')
+                  setStep('credentials')
                   setOtp('')
                   setMessage('')
+                  setError('')
                 }}
                 disabled={loading}
               >
-                Change phone
+                Edit
               </Button>
             </div>
           </div>
         )}
 
-        {message ? <p className="text-sm text-slate-700">{message}</p> : null}
+        {error ? <p className="mt-4 text-sm font-medium text-red-600">{error}</p> : null}
+        {message ? <p className="mt-4 text-sm text-slate-700">{message}</p> : null}
       </div>
     </div>
   )
 }
-

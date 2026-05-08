@@ -18,7 +18,7 @@ function fail(res, status, message, error = '') {
 export async function listPendingDoctors(req, res) {
   try {
     const doctors = await Doctor.find({ isVerified: false })
-      .populate('userId', 'name phone')
+      .populate('userId', 'name email')
       .populate('clinicId', 'name city')
 
     return ok(res, { doctors })
@@ -64,8 +64,11 @@ export async function listAllAppointments(req, res) {
 
   try {
     const appointments = await Appointment.find(query)
-      .populate('patientId', 'name phone')
-      .populate('doctorId')
+      .populate('patientId', 'name email')
+      .populate({
+        path: 'doctorId',
+        populate: [{ path: 'userId', select: 'name email role' }],
+      })
       .populate('clinicId')
       .sort({ createdAt: -1 })
       .skip(Number(skip))
