@@ -6,7 +6,8 @@ export function useDoctors(params) {
   const [error, setError] = useState('')
   const [doctors, setDoctors] = useState([])
 
-  const key = useMemo(() => JSON.stringify(params || {}), [params])
+  const requestParams = useMemo(() => params || {}, [params])
+  const key = useMemo(() => JSON.stringify(requestParams), [requestParams])
 
   useEffect(() => {
     let cancelled = false
@@ -14,7 +15,7 @@ export function useDoctors(params) {
       setLoading(true)
       setError('')
       try {
-        const res = await doctorApi.list(params)
+        const res = await doctorApi.list(requestParams)
         if (!cancelled) setDoctors(res?.data?.doctors || [])
       } catch (e) {
         if (!cancelled) setError(e?.message || 'Failed to load doctors')
@@ -27,8 +28,7 @@ export function useDoctors(params) {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key])
+  }, [key, requestParams])
 
   return { loading, error, doctors }
 }
-

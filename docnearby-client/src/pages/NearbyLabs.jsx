@@ -7,6 +7,7 @@ export default function NearbyLabs() {
   const { coords, useBrowserLocation } = useLocation();
   const [labs, setLabs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [fetchingLocation, setFetchingLocation] = useState(false);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
   const [lastSearched, setLastSearched] = useState("");
@@ -28,7 +29,28 @@ export default function NearbyLabs() {
     }
   };
 
-  // Initial load
+  useEffect(() => {
+    if (coords) return;
+
+    let cancelled = false;
+
+    async function detectLocation() {
+      setFetchingLocation(true);
+      try {
+        await useBrowserLocation({ timeout: 8000 });
+      } catch {
+        // Silent fallback to the unfiltered initial load.
+      } finally {
+        if (!cancelled) setFetchingLocation(false);
+      }
+    }
+
+    detectLocation();
+    return () => {
+      cancelled = true;
+    };
+  }, [coords, useBrowserLocation]);
+
   useEffect(() => {
     const baseParams = coords
       ? { lat: coords.lat, lng: coords.lng, radius: 5000 }
@@ -120,6 +142,12 @@ export default function NearbyLabs() {
         <p className="mb-4 text-sm text-red-600 bg-red-50 p-3 rounded-lg">
           {error}
         </p>
+      )}
+
+      {fetchingLocation && (
+        <div className="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-sm font-medium text-indigo-700">
+          Fetching your location...
+        </div>
       )}
 
       {loading ? (

@@ -17,7 +17,7 @@ export default function Search() {
 
   const params = useMemo(() => {
     const p = {}
-    if (coords?.lat && coords?.lng) Object.assign(p, { lat: coords.lat, lng: coords.lng, radius: 5000 })
+    if (coords?.lat && coords?.lng) Object.assign(p, { lat: coords.lat, lng: coords.lng, radius: 10000 })
     if (filters.specialty) p.specialty = filters.specialty
     if (filters.language) p.language = filters.language
     if (filters.maxFee) p.maxFee = Number(filters.maxFee)
@@ -39,6 +39,12 @@ export default function Search() {
             <h1 className="text-2xl font-bold text-slate-900">Available Doctors</h1>
             {loading && doctors.length > 0 && <Spinner className="h-5 w-5 text-indigo-600" />}
           </div>
+
+          {!coords && (
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm font-semibold text-indigo-800">
+              📍 Enable location for nearby results — showing all doctors
+            </div>
+          )}
 
           {error && (
             <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
@@ -81,4 +87,3 @@ export default function Search() {
     </div>
   )
 }
-

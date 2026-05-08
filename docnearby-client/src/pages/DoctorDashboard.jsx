@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Spinner from "../components/common/Spinner.jsx";
 import Modal from "../components/common/Modal.jsx";
 import { appointmentApi, doctorApi } from "../services/api.js";
+import { LANGUAGES, SPECIALTIES } from "../utils/constants.js";
 import translations from "../utils/i18n.js";
 
 export default function DoctorDashboard() {
@@ -14,7 +15,14 @@ export default function DoctorDashboard() {
   const [modalOpen, setModalOpen] = useState(false);
   const [doctor, setDoctor] = useState(null);
   const [availabilityRows, setAvailabilityRows] = useState([]);
+  const [profileForm, setProfileForm] = useState({
+    specialty: "",
+    experience: "",
+    consultationFee: "",
+    languages: [],
+  });
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [savingAvailability, setSavingAvailability] = useState(false);
   const [availabilityError, setAvailabilityError] = useState("");
   const [toast, setToast] = useState("");
@@ -52,7 +60,7 @@ export default function DoctorDashboard() {
     setAvailabilityError("");
     try {
       const data = await doctorApi.me();
-      setDoctor(data.doctor || null);
+      setDoctor(data.data?.doctor || null);
     } catch (e) {
       setAvailabilityError(
         e?.response?.data?.message ||
@@ -127,6 +135,13 @@ export default function DoctorDashboard() {
             },
           ],
     );
+    setProfileForm({
+      specialty: doctor.specialty || "",
+      experience: doctor.experience != null ? String(doctor.experience) : "",
+      consultationFee:
+        doctor.consultationFee != null ? String(doctor.consultationFee) : "",
+      languages: doctor.languages || [],
+    });
     setAvailabilityError("");
   }, [modalOpen, doctor]);
 
@@ -218,6 +233,52 @@ export default function DoctorDashboard() {
     setAvailabilityError("");
   };
 
+  const handleProfileChange = (field, value) => {
+    setProfileForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const toggleProfileLanguage = (language) => {
+    setProfileForm((prev) => {
+      const selected = prev.languages.includes(language);
+      return {
+        ...prev,
+        languages: selected
+          ? prev.languages.filter((item) => item !== language)
+          : [...prev.languages, language],
+      };
+    });
+  };
+
+  const saveProfile = async () => {
+    if (!doctor?._id) {
+      setToast("Unable to save profile without a valid doctor profile.");
+      setToastType("error");
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      const payload = {
+        specialty: profileForm.specialty,
+        experience: Number(profileForm.experience || 0),
+        consultationFee: Number(profileForm.consultationFee || 0),
+        languages: profileForm.languages,
+      };
+      const data = await doctorApi.update(doctor._id, payload);
+      const updatedDoctor = data.data?.doctor;
+      setDoctor(updatedDoctor || null);
+      setToast("Profile saved successfully.");
+      setToastType("success");
+    } catch (e) {
+      const message =
+        e?.response?.data?.message || e?.message || "Unable to save profile";
+      setToast(message);
+      setToastType("error");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   const saveAvailability = async () => {
     const validation = validateAvailabilityRows(availabilityRows);
     if (!validation.ok) {
@@ -237,9 +298,10 @@ export default function DoctorDashboard() {
     try {
       const payload = { availableSlots: validation.slots };
       const data = await doctorApi.updateAvailability(doctor._id, payload);
-      setDoctor(data.doctor);
+      const updatedDoctor = data.data?.doctor;
+      setDoctor(updatedDoctor || null);
       setAvailabilityRows(
-        (data.doctor.availableSlots || []).map((slot) => ({
+        (updatedDoctor?.availableSlots || []).map((slot) => ({
           day: slot.day,
           startTime: slot.startTime,
           endTime: slot.endTime,
@@ -485,6 +547,105 @@ export default function DoctorDashboard() {
                 {toast}
               </div>
             )}
+
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
+              <div className="mb-4">
+                <h4 className="text-lg font-semibold text-slate-900">
+                  Your profile
+                </h4>
+                <p className="text-sm text-slate-500">
+                  Keep your specialty, experience, fee, and languages current.
+                </p>
+              </div>
+
+              {availabilityLoading ? (
+                <div className="flex min-h-[160px] items-center justify-center rounded-3xl bg-white/60 p-8 text-sm text-slate-500">
+                  Loading your doctor profile...
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <label className="block text-sm font-medium text-slate-700">
+                      Specialty
+                      <select
+                        value={profileForm.specialty}
+                        onChange={(e) =>
+                          handleProfileChange("specialty", e.target.value)
+                        }
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                      >
+                        <option value="">Select specialty</option>
+                        {SPECIALTIES.map((specialty) => (
+                          <option key={specialty} value={specialty}>
+                            {specialty}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="block text-sm font-medium text-slate-700">
+                      Experience (years)
+                      <input
+                        type="number"
+                        min="0"
+                        value={profileForm.experience}
+                        onChange={(e) =>
+                          handleProfileChange("experience", e.target.value)
+                        }
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                      />
+                    </label>
+
+                    <label className="block text-sm font-medium text-slate-700">
+                      Consultation Fee (₹)
+                      <input
+                        type="number"
+                        min="0"
+                        value={profileForm.consultationFee}
+                        onChange={(e) =>
+                          handleProfileChange(
+                            "consultationFee",
+                            e.target.value,
+                          )
+                        }
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                      />
+                    </label>
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-sm font-medium text-slate-700">
+                      Languages
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {LANGUAGES.map((language) => (
+                        <label
+                          key={language}
+                          className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={profileForm.languages.includes(language)}
+                            onChange={() => toggleProfileLanguage(language)}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          {language}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={saveProfile}
+                    disabled={savingProfile || availabilityLoading}
+                    className="inline-flex items-center rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {savingProfile ? "Saving..." : "Save Profile"}
+                  </button>
+                </div>
+              )}
+            </div>
 
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
               <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

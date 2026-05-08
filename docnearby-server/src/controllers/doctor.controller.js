@@ -52,26 +52,34 @@ export async function listDoctors(req, res) {
   const lng = parseNumber(req.query.lng);
   const radius = parseNumber(req.query.radius) ?? 5000;
 
-  const doctorQuery = {};
-  if (specialty) doctorQuery.specialty = specialty;
-  if (language) doctorQuery.languages = language;
-  if (maxFee !== null) doctorQuery.consultationFee = { $lte: maxFee };
+  const filterObj = {};
+  if (specialty) filterObj.specialty = specialty;
+  if (language) filterObj.languages = language;
+  if (maxFee !== null) filterObj.consultationFee = { $lte: Number(maxFee) };
 
-  if (lat !== null && lng !== null) {
-    const clinics = await Clinic.find({
-      location: {
-        $near: {
-          $geometry: { type: "Point", coordinates: [lng, lat] },
-          $maxDistance: radius,
-        },
-      },
-    }).select("_id");
-    const clinicIds = clinics.map((c) => c._id);
-    if (!clinicIds.length) return ok(res, { doctors: [] }, "OK");
-    doctorQuery.clinicId = { $in: clinicIds };
+  if (lat === null || lng === null) {
+    const doctors = await Doctor.find(filterObj)
+      .populate("clinicId", "name address city")
+      .populate("userId", "name phone")
+      .sort({ rating: -1 })
+      .limit(20);
+
+    return ok(res, { doctors }, "OK");
   }
 
-  const doctors = await Doctor.find(doctorQuery)
+  const clinics = await Clinic.find({
+    location: {
+      $near: {
+        $geometry: { type: "Point", coordinates: [lng, lat] },
+        $maxDistance: radius,
+      },
+    },
+  }).select("_id");
+  const clinicIds = clinics.map((c) => c._id);
+  if (!clinicIds.length) return ok(res, { doctors: [] }, "OK");
+  filterObj.clinicId = { $in: clinicIds };
+
+  const doctors = await Doctor.find(filterObj)
     .populate("userId", "name email role")
     .populate("clinicId", "name address city state pincode location phone")
     .limit(100);

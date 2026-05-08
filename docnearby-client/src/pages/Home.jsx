@@ -27,6 +27,10 @@ export default function Home() {
 
   const t = translations[lang]
 
+  const handleSearchDoctors = () => {
+    navigate('/search')
+  }
+
   const handleSuggest = async () => {
     if (!symptoms.trim()) {
       setError('Please describe your symptoms first.')
@@ -114,7 +118,7 @@ export default function Home() {
               </p>
               <Button 
                 type="button" 
-                onClick={() => navigate('/search')}
+                onClick={handleSearchDoctors}
                 className="rounded-2xl px-8 shadow-lg shadow-indigo-100 transition-all active:scale-95"
               >
                 {t.searchBtn}
@@ -202,4 +206,3 @@ export default function Home() {
     </div>
   )
 }
-
