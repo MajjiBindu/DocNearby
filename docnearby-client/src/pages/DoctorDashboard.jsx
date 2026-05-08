@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Spinner from "../components/common/Spinner.jsx";
 import Modal from "../components/common/Modal.jsx";
-import { appointmentApi } from "../services/api.js";
+import { appointmentApi, doctorApi } from "../services/api.js";
 import translations from "../utils/i18n.js";
 
 export default function DoctorDashboard() {
@@ -12,6 +12,15 @@ export default function DoctorDashboard() {
   const [error, setError] = useState("");
   const [appointments, setAppointments] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [doctor, setDoctor] = useState(null);
+  const [availabilityRows, setAvailabilityRows] = useState([]);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [savingAvailability, setSavingAvailability] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState("");
+  const [toast, setToast] = useState("");
+  const [toastType, setToastType] = useState("success");
+
+  const DAY_OPTIONS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   useEffect(() => {
     const handleLangChange = () =>
@@ -38,8 +47,26 @@ export default function DoctorDashboard() {
     }
   };
 
+  const loadDoctor = async () => {
+    setAvailabilityLoading(true);
+    setAvailabilityError("");
+    try {
+      const data = await doctorApi.me();
+      setDoctor(data.doctor || null);
+    } catch (e) {
+      setAvailabilityError(
+        e?.response?.data?.message ||
+          e?.message ||
+          "Failed to load doctor profile",
+      );
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  };
+
   useEffect(() => {
     load();
+    loadDoctor();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -76,6 +103,169 @@ export default function DoctorDashboard() {
       default:
         return "bg-slate-100 text-slate-700 border-slate-200";
     }
+  };
+
+  useEffect(() => {
+    if (!modalOpen || !doctor) return;
+
+    const initialRows = (doctor.availableSlots || []).map((slot) => ({
+      day: slot.day || "Mon",
+      startTime: slot.startTime || "09:00",
+      endTime: slot.endTime || "17:00",
+      slotDuration: slot.slotDuration || 30,
+    }));
+
+    setAvailabilityRows(
+      initialRows.length
+        ? initialRows
+        : [
+            {
+              day: "Mon",
+              startTime: "09:00",
+              endTime: "17:00",
+              slotDuration: 30,
+            },
+          ],
+    );
+    setAvailabilityError("");
+  }, [modalOpen, doctor]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(""), 3200);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  const validateAvailabilityRows = (rows) => {
+    const cleaned = rows.map((row) => ({
+      day: String(row.day || "").trim(),
+      startTime: String(row.startTime || "").trim(),
+      endTime: String(row.endTime || "").trim(),
+      slotDuration: Number(row.slotDuration) || 30,
+    }));
+
+    if (cleaned.length === 0) {
+      return { ok: false, message: "Add at least one availability slot." };
+    }
+
+    for (const row of cleaned) {
+      if (!DAY_OPTIONS.includes(row.day)) {
+        return {
+          ok: false,
+          message: "Please choose a valid day for each slot.",
+        };
+      }
+      if (
+        !/^([01]\d|2[0-3]):([0-5]\d)$/.test(row.startTime) ||
+        !/^([01]\d|2[0-3]):([0-5]\d)$/.test(row.endTime)
+      ) {
+        return {
+          ok: false,
+          message: "Use a valid HH:mm start and end time for each slot.",
+        };
+      }
+      if (row.startTime >= row.endTime) {
+        return {
+          ok: false,
+          message: "Start time must come before end time for each slot.",
+        };
+      }
+    }
+
+    const grouped = cleaned.reduce((acc, slot) => {
+      acc[slot.day] = acc[slot.day] || [];
+      acc[slot.day].push(slot);
+      return acc;
+    }, {});
+
+    for (const day of Object.keys(grouped)) {
+      const sorted = grouped[day]
+        .slice()
+        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+      for (let index = 1; index < sorted.length; index += 1) {
+        const prevEnd = sorted[index - 1].endTime;
+        const currentStart = sorted[index].startTime;
+        if (currentStart < prevEnd) {
+          return {
+            ok: false,
+            message: `Availability slots on ${day} cannot overlap. Please adjust your times.`,
+          };
+        }
+      }
+    }
+
+    return { ok: true, slots: cleaned };
+  };
+
+  const handleAvailabilityChange = (index, field, value) => {
+    setAvailabilityRows((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
+
+  const addAvailabilityRow = () => {
+    setAvailabilityRows((prev) => [
+      ...prev,
+      { day: "Mon", startTime: "09:00", endTime: "17:00", slotDuration: 30 },
+    ]);
+    setAvailabilityError("");
+  };
+
+  const removeAvailabilityRow = (index) => {
+    setAvailabilityRows((prev) => prev.filter((_, idx) => idx !== index));
+    setAvailabilityError("");
+  };
+
+  const saveAvailability = async () => {
+    const validation = validateAvailabilityRows(availabilityRows);
+    if (!validation.ok) {
+      setAvailabilityError(validation.message);
+      return;
+    }
+
+    if (!doctor?._id) {
+      setAvailabilityError(
+        "Unable to save availability without a valid doctor profile.",
+      );
+      return;
+    }
+
+    setSavingAvailability(true);
+    setAvailabilityError("");
+    try {
+      const payload = { availableSlots: validation.slots };
+      const data = await doctorApi.updateAvailability(doctor._id, payload);
+      setDoctor(data.doctor);
+      setAvailabilityRows(
+        (data.doctor.availableSlots || []).map((slot) => ({
+          day: slot.day,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          slotDuration: slot.slotDuration || 30,
+        })),
+      );
+      setToast("Availability saved successfully.");
+      setToastType("success");
+    } catch (e) {
+      const message =
+        e?.response?.data?.message ||
+        e?.message ||
+        "Unable to save availability";
+      setAvailabilityError(message);
+      setToast(message);
+      setToastType("error");
+    } finally {
+      setSavingAvailability(false);
+    }
+  };
+
+  const getAvailabilityLabel = () => {
+    if (!doctor) return "Loading availability...";
+    return doctor.availableSlots?.length
+      ? `${doctor.availableSlots.length} saved slot${doctor.availableSlots.length === 1 ? "" : "s"}`
+      : "No availability slots saved yet";
   };
 
   return (
@@ -284,48 +474,141 @@ export default function DoctorDashboard() {
           onClose={() => setModalOpen(false)}
         >
           <div className="space-y-6 py-2">
-            <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 to-white p-5 shadow-inner">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-200">
-                  <svg
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
+            {toast && (
+              <div
+                className={`rounded-2xl px-4 py-3 text-sm font-medium ${
+                  toastType === "success"
+                    ? "bg-emerald-50 text-emerald-900 border border-emerald-200"
+                    : "bg-rose-50 text-rose-900 border border-rose-200"
+                }`}
+              >
+                {toast}
+              </div>
+            )}
+
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h4 className="text-lg font-semibold text-slate-900">
+                    Manage your availability
+                  </h4>
+                  <p className="text-sm text-slate-500">
+                    Add days and time ranges for your consultation slots.
+                  </p>
                 </div>
-                <h4 className="text-base font-bold text-slate-800">
-                  Integration Details
-                </h4>
+                <div className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white">
+                  {getAvailabilityLabel()}
+                </div>
               </div>
 
-              <div className="space-y-4 text-sm leading-relaxed text-slate-600">
-                <p>
-                  To update your availability slots, please use the following
-                  endpoint:
-                </p>
-                <div className="relative group">
-                  <div className="absolute -inset-0.5 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 opacity-20 blur group-hover:opacity-30 transition-opacity"></div>
-                  <div className="relative flex items-center justify-between rounded-lg bg-slate-900 p-4 font-mono text-xs text-indigo-300">
-                    <span>PUT /api/doctors/:id</span>
-                  </div>
+              {availabilityLoading ? (
+                <div className="flex min-h-[180px] items-center justify-center rounded-3xl bg-white/60 p-8 text-sm text-slate-500">
+                  Loading your doctor profile...
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-4">
+                  {availabilityRows.map((slot, index) => (
+                    <div
+                      key={`${slot.day}-${slot.startTime}-${slot.endTime}-${index}`}
+                      className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[1.2fr_1fr_1fr_auto]"
+                    >
+                      <label className="block text-sm font-medium text-slate-700">
+                        Day
+                        <select
+                          value={slot.day}
+                          onChange={(e) =>
+                            handleAvailabilityChange(
+                              index,
+                              "day",
+                              e.target.value,
+                            )
+                          }
+                          className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                        >
+                          {DAY_OPTIONS.map((dayOption) => (
+                            <option key={dayOption} value={dayOption}>
+                              {dayOption}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="block text-sm font-medium text-slate-700">
+                        Start time
+                        <input
+                          type="time"
+                          value={slot.startTime}
+                          onChange={(e) =>
+                            handleAvailabilityChange(
+                              index,
+                              "startTime",
+                              e.target.value,
+                            )
+                          }
+                          className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                        />
+                      </label>
+
+                      <label className="block text-sm font-medium text-slate-700">
+                        End time
+                        <input
+                          type="time"
+                          value={slot.endTime}
+                          onChange={(e) =>
+                            handleAvailabilityChange(
+                              index,
+                              "endTime",
+                              e.target.value,
+                            )
+                          }
+                          className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                        />
+                      </label>
+
+                      <div className="flex items-end justify-end">
+                        <button
+                          type="button"
+                          onClick={() => removeAvailabilityRow(index)}
+                          className="inline-flex items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={addAvailabilityRow}
+                    className="inline-flex items-center rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
+                  >
+                    + Add slot
+                  </button>
+                </div>
+              )}
+
+              {availabilityError && (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  {availabilityError}
+                </div>
+              )}
             </div>
 
-            <div className="flex justify-end gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
               <button
+                type="button"
                 onClick={() => setModalOpen(false)}
-                className="w-full rounded-xl bg-slate-900 py-3 text-sm font-bold text-white shadow-lg shadow-slate-200 transition-all hover:bg-slate-800 active:scale-[0.98]"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 sm:w-auto"
               >
-                {t.brand} - OK
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={saveAvailability}
+                disabled={savingAvailability || availabilityLoading}
+                className="w-full rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+              >
+                {savingAvailability ? "Saving..." : "Save Availability"}
               </button>
             </div>
           </div>
