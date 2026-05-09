@@ -52,7 +52,7 @@ export const clinicApi = {
 
 export const appointmentApi = {
   create: (payload) => unwrap(api.post("/appointments", payload)),
-  mine: () => unwrap(api.get("/appointments/mine")),
+  patient: () => unwrap(api.get("/appointments/mine")),
   doctor: () => unwrap(api.get("/appointments/doctor")),
   updateStatus: (id, status) =>
     unwrap(api.patch(`/appointments/${id}/status`, { status })),

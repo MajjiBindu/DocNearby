@@ -6,9 +6,76 @@ html,
 body,
 #root {
   height: 100%;
+  overflow-x: hidden;
 }
 
 body {
-  @apply bg-slate-50 text-slate-900;
+  @apply bg-purple-shadow text-slate-900;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background-color: rgb(203 213 225);
+}
+
+/* Navbar Language Switcher Polish */
+.nav-lang-switcher button {
+  @apply !bg-white/5 !border-white/10 !text-white hover:!bg-white/10 !shadow-none !transition-all !duration-200;
+}
+
+.nav-lang-switcher button svg {
+  @apply !text-white/60;
+}
+
+.nav-lang-switcher button span {
+  @apply !text-white/90 font-medium;
+}
+
+/* Ensure dropdowns look premium */
+.nav-lang-switcher [role="menu"] {
+  @apply !bg-blue-popsicle !border-white/10 !shadow-2xl !text-white;
+}
+
+.nav-lang-switcher [role="menuitem"] {
+  @apply hover:!bg-white/10 !text-white/80;
+}
+
+.nav-lang-switcher [role="menuitem"].bg-indigo-50 {
+  @apply !bg-redline !text-white font-bold;
+}
+
+.nav-lang-switcher p {
+  @apply !text-white/40;
+}
+
+/* Search Sidebar Polish */
+aside select, 
+.lg\:hidden select,
+aside input,
+.lg\:hidden input {
+  @apply !bg-white/5 !border-white/10 !text-white focus:!bg-white/10 focus:!ring-blue-popsicle/50 !transition-all !duration-200 !rounded-xl !px-4 !py-2.5 !appearance-none !outline-none !shadow-none !important;
+}
+
+aside label,
+.lg\:hidden label {
+  @apply !text-white/40 !text-[10px] !font-black !uppercase !tracking-[0.2em] !mb-3 !block !important;
+}
+
+aside option,
+.lg\:hidden option {
+  @apply !bg-purple-shadow !text-white !important;
+}
+
+/* Button Refinements */
+.doctor-card-view {
+  @apply bg-redline text-white px-5 py-2 rounded-xl font-bold hover:bg-redline/90 transition-all active:scale-95 shadow-lg shadow-redline/20;
 }
 

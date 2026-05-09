@@ -10,6 +10,7 @@ import DoctorDashboard from './pages/DoctorDashboard.jsx'
 import Login from './pages/Login.jsx'
 import NearbyLabs from './pages/NearbyLabs.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
+import ClinicList from './pages/ClinicList.jsx'
 import NotFound from './pages/NotFound.jsx'
 import ProtectedRoute from './components/common/ProtectedRoute.jsx'
 
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/doctors/:id" element={<DoctorProfile />} />
           <Route path="/book/:id" element={<BookAppointment />} />
           <Route path="/labs" element={<NearbyLabs />} />
+          <Route path="/clinics" element={<ClinicList />} />
           <Route path="/login" element={<Login />} />
 
           <Route

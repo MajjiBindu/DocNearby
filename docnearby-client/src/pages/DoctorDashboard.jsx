@@ -44,6 +44,7 @@ export default function DoctorDashboard() {
     setError("");
     try {
       const data = await appointmentApi.doctor();
+      console.log("appointmentApi.doctor() returned:", data);
       const list = Array.isArray(data) ? data : (data?.appointments ?? []);
       setAppointments(list);
     } catch (e) {
@@ -101,13 +102,13 @@ export default function DoctorDashboard() {
   const getStatusStyles = (status) => {
     switch (status) {
       case "pending":
-        return "bg-amber-100 text-amber-700 border-amber-200";
+        return "bg-grey-blue-leaf/10 text-grey-blue-leaf border-grey-blue-leaf/20";
       case "confirmed":
-        return "bg-indigo-100 text-indigo-700 border-indigo-200";
+        return "bg-redline/10 text-redline border-redline/20";
       case "completed":
         return "bg-emerald-100 text-emerald-700 border-emerald-200";
       case "cancelled":
-        return "bg-rose-100 text-rose-700 border-rose-200";
+        return "bg-slate-100 text-slate-400 border-slate-200";
       default:
         return "bg-slate-100 text-slate-700 border-slate-200";
     }
@@ -121,6 +122,8 @@ export default function DoctorDashboard() {
       startTime: slot.startTime || "09:00",
       endTime: slot.endTime || "17:00",
       slotDuration: slot.slotDuration || 30,
+      clinicName: slot.clinicName || "",
+      location: slot.location || "",
     }));
 
     setAvailabilityRows(
@@ -132,6 +135,8 @@ export default function DoctorDashboard() {
               startTime: "09:00",
               endTime: "17:00",
               slotDuration: 30,
+              clinicName: "",
+              location: "",
             },
           ],
     );
@@ -157,6 +162,8 @@ export default function DoctorDashboard() {
       startTime: String(row.startTime || "").trim(),
       endTime: String(row.endTime || "").trim(),
       slotDuration: Number(row.slotDuration) || 30,
+      clinicName: String(row.clinicName || "").trim(),
+      location: String(row.location || "").trim(),
     }));
 
     if (cleaned.length === 0) {
@@ -223,7 +230,14 @@ export default function DoctorDashboard() {
   const addAvailabilityRow = () => {
     setAvailabilityRows((prev) => [
       ...prev,
-      { day: "Mon", startTime: "09:00", endTime: "17:00", slotDuration: 30 },
+      {
+        day: "Mon",
+        startTime: "09:00",
+        endTime: "17:00",
+        slotDuration: 30,
+        clinicName: "",
+        location: "",
+      },
     ]);
     setAvailabilityError("");
   };
@@ -306,6 +320,8 @@ export default function DoctorDashboard() {
           startTime: slot.startTime,
           endTime: slot.endTime,
           slotDuration: slot.slotDuration || 30,
+          clinicName: slot.clinicName || "",
+          location: slot.location || "",
         })),
       );
       setToast("Availability saved successfully.");
@@ -331,68 +347,91 @@ export default function DoctorDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 p-4 sm:p-8">
-      <div className="mx-auto max-w-5xl">
-        <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between animate-in fade-in slide-in-from-top-4 duration-700">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-              {t.doctorDashboard}
-            </h1>
-            <p className="text-slate-500">
-              Manage your daily appointments and schedule.
-            </p>
-          </div>
-          <button
-            onClick={() => setModalOpen(true)}
-            className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-indigo-500 hover:shadow-indigo-200 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 active:scale-95"
-          >
-            {t.editAvailability}
-          </button>
-        </header>
-
-        {error && (
-          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
-            <div className="flex items-center gap-2">
-              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          </div>
-        )}
-
-        <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-xl shadow-slate-200/50 backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-800">
+    <div className="min-h-screen bg-transparent pb-20 pt-8">
+      <div className="mx-auto max-w-7xl px-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8">
+          {/* Sidebar */}
+          <aside className="hidden lg:block h-fit rounded-[2.5rem] bg-purple-shadow border border-white/10 p-8 shadow-2xl shadow-black/30 sticky top-24">
+            <h2 className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mb-8">
+              Management
+            </h2>
+            <nav className="space-y-2">
+              <button className="w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-black bg-redline text-white shadow-lg shadow-redline/20 transition-all">
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
                 {t.dailySchedule}
-              </h2>
-              <div className="flex items-center gap-2">
-                <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {todayStr}
-                </span>
-              </div>
-            </div>
-          </div>
+              </button>
+              <button
+                onClick={() => setModalOpen(true)}
+                className="w-full flex items-center gap-3 px-6 py-4 rounded-2xl font-bold text-white/60 hover:bg-white/5 hover:text-white transition-all"
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37a1.724 1.724 0 002.572-1.065z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+                {t.editAvailability}
+              </button>
+            </nav>
 
-          <div className="min-h-[400px]">
-            {loading && appointments.length === 0 ? (
-              <div className="flex h-64 flex-col items-center justify-center gap-4 animate-in fade-in duration-500">
-                <Spinner className="h-8 w-8 text-indigo-600" />
-                <p className="text-sm font-medium text-slate-500">
-                  Syncing your schedule...
+            <div className="mt-12 p-6 rounded-[2rem] bg-white/5 border border-white/5 text-center">
+              <div className="h-16 w-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-popsicle to-purple-shadow flex items-center justify-center text-white text-2xl font-black shadow-xl">
+                {doctor?.userId?.name?.charAt(0) || "D"}
+              </div>
+              <p className="text-xs font-black text-white uppercase tracking-widest">
+                {doctor?.specialty}
+              </p>
+              <p className="mt-1 text-xs font-medium text-white/40">
+                {doctor?.availableSlots?.length || 0} active slots
+              </p>
+            </div>
+          </aside>
+
+          <main className="space-y-8">
+            <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between animate-in fade-in slide-in-from-top-4 duration-700">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
+                  {t.doctorDashboard}
+                </h1>
+                <p className="text-white/40 text-base font-medium">
+                  Manage your daily appointments and schedule.
                 </p>
               </div>
-            ) : todays.length === 0 ? (
-              <div className="flex min-h-[300px] flex-col items-center justify-center gap-4 text-slate-400 p-8 animate-in fade-in duration-500">
-                <div className="rounded-full bg-slate-50 p-4">
+              <div className="flex gap-4">
+                {loading && appointments.length > 0 && (
+                  <Spinner className="h-6 w-6 text-redline" />
+                )}
+                <button
+                  onClick={load}
+                  className="inline-flex items-center justify-center rounded-xl bg-white/10 border border-white/20 px-5 py-2.5 text-sm font-bold text-white hover:bg-white/20 transition-all active:scale-95"
+                >
                   <svg
-                    className="h-10 w-10 opacity-30 text-slate-400"
+                    className="h-4 w-4 mr-2"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -400,142 +439,234 @@ export default function DoctorDashboard() {
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                     />
                   </svg>
-                </div>
-                <div className="text-center">
-                  <p className="text-base font-bold text-slate-900">
-                    {t.noSchedule}
+                  Refresh
+                </button>
+                <button
+                  onClick={() => setModalOpen(true)}
+                  className="lg:hidden inline-flex items-center justify-center rounded-xl bg-redline px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-redline/20 active:scale-95 transition-all"
+                >
+                  {t.editAvailability}
+                </button>
+              </div>
+            </header>
+
+            {/* Stat Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+              <div className="rounded-[1.5rem] bg-white overflow-hidden shadow-2xl shadow-grey-blue-leaf/5">
+                <div className="h-2 bg-blue-popsicle" />
+                <div className="p-6">
+                  <p className="text-[10px] font-black text-grey-blue-leaf/40 uppercase tracking-[0.2em] mb-1">
+                    Total Bookings
                   </p>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Enjoy your free time or check your future bookings.
+                  <p className="text-3xl font-black text-blue-popsicle">
+                    {appointments.length}
                   </p>
                 </div>
               </div>
-            ) : (
-              <div className="overflow-x-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <table className="w-full border-collapse text-left">
-                  <thead>
-                    <tr className="bg-slate-50/30 text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                      <th className="px-6 py-4">Time Slot</th>
-                      <th className="px-6 py-4">Patient Information</th>
-                      <th className="px-6 py-4 text-center">Status</th>
-                      <th className="px-6 py-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {todays.map((a) => (
-                      <tr
-                        key={a._id}
-                        className="group transition-all hover:bg-slate-50/80"
-                      >
-                        <td className="whitespace-nowrap px-6 py-5 text-sm font-semibold text-slate-900">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                              <svg
-                                className="h-4 w-4"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                />
-                              </svg>
-                            </div>
-                            {a.slot}
-                          </div>
-                        </td>
-                        <td className="px-6 py-5">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-sm font-bold text-slate-700">
-                              {a.patientId?.name || "Anonymous Patient"}
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                              <svg
-                                className="h-3 w-3 text-slate-400"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M16 12H8m8 0a4 4 0 10-8 0m8 0v1a2 2 0 104 0v-1a8 8 0 10-4 6.93"
-                                />
-                              </svg>
-                              <a
-                                href={`mailto:${a.patientId?.email}`}
-                                className="text-xs font-medium text-indigo-500 transition-colors hover:text-indigo-700"
-                              >
-                                {a.patientId?.email || "No contact info"}
-                              </a>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-5 text-center">
-                          <span
-                            className={`inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${getStatusStyles(a.status)}`}
-                          >
-                            {a.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-5 text-right">
-                          <div className="flex justify-end gap-2">
-                            {a.status === "pending" && (
-                              <button
-                                onClick={() =>
-                                  handleStatusUpdate(a._id, "confirmed")
-                                }
-                                className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-indigo-700 hover:shadow-md active:scale-95"
-                              >
-                                {t.confirmBtn}
-                              </button>
-                            )}
-                            {a.status === "confirmed" && (
-                              <button
-                                onClick={() =>
-                                  handleStatusUpdate(a._id, "completed")
-                                }
-                                className="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-emerald-700 hover:shadow-md active:scale-95"
-                              >
-                                {t.markComplete}
-                              </button>
-                            )}
-                            {(a.status === "pending" ||
-                              a.status === "confirmed") && (
-                              <button
-                                onClick={() =>
-                                  handleStatusUpdate(a._id, "cancelled")
-                                }
-                                className="rounded-lg border border-slate-200 bg-white px-4 py-1.5 text-xs font-bold text-slate-600 transition-all hover:bg-slate-50 hover:text-rose-600 hover:border-rose-200 active:scale-95"
-                              >
-                                {t.cancelBtn}
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="rounded-[1.5rem] bg-white overflow-hidden shadow-2xl shadow-grey-blue-leaf/5">
+                <div className="h-2 bg-redline" />
+                <div className="p-6">
+                  <p className="text-[10px] font-black text-grey-blue-leaf/40 uppercase tracking-[0.2em] mb-1">
+                    Today's Visits
+                  </p>
+                  <p className="text-3xl font-black text-blue-popsicle">
+                    {todays.length}
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-[1.5rem] bg-white overflow-hidden shadow-2xl shadow-grey-blue-leaf/5">
+                <div className="h-2 bg-emerald-500" />
+                <div className="p-6">
+                  <p className="text-[10px] font-black text-grey-blue-leaf/40 uppercase tracking-[0.2em] mb-1">
+                    Status
+                  </p>
+                  <p className="text-xl font-black text-emerald-500 uppercase tracking-tighter">
+                    Active
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
+                <div className="flex items-center gap-2">
+                  <svg
+                    className="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span className="font-medium">{error}</span>
+                </div>
               </div>
             )}
-          </div>
-        </section>
+
+            <section className="relative overflow-hidden rounded-[2.5rem] border border-grey-blue-leaf/10 bg-white shadow-2xl shadow-grey-blue-leaf/5 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="border-b border-grey-blue-leaf/10 bg-blue-popsicle px-8 py-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-black text-white tracking-tight">
+                    {t.dailySchedule}
+                  </h2>
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span className="text-xs font-black text-white/50 uppercase tracking-[0.2em]">
+                      {todayStr}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="min-h-[400px]">
+                {loading && appointments.length === 0 ? (
+                  <div className="flex h-64 flex-col items-center justify-center gap-4 animate-in fade-in duration-500">
+                    <Spinner className="h-8 w-8 text-indigo-600" />
+                    <p className="text-sm font-medium text-slate-500">
+                      Syncing your schedule...
+                    </p>
+                  </div>
+                ) : todays.length === 0 ? (
+                  <div className="flex min-h-[300px] flex-col items-center justify-center gap-4 text-slate-400 p-8 animate-in fade-in duration-500">
+                    <div className="rounded-full bg-slate-50 p-4">
+                      <svg
+                        className="h-10 w-10 opacity-30 text-slate-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-base font-bold text-slate-900">
+                        {t.noSchedule}
+                      </p>
+                      <p className="text-sm text-slate-500 mt-1">
+                        Enjoy your free time or check your future bookings.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <table className="w-full border-collapse text-left">
+                      <thead>
+                        <tr className="bg-slate-50/50 text-[10px] font-black uppercase tracking-[0.2em] text-grey-blue-leaf/50">
+                          <th className="px-8 py-6">Time Slot</th>
+                          <th className="px-8 py-6">Patient Information</th>
+                          <th className="px-8 py-6 text-center">Status</th>
+                          <th className="px-8 py-6 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {todays.map((a) => (
+                          <tr
+                            key={a._id}
+                            className="group transition-all hover:bg-slate-50/80"
+                          >
+                            <td className="whitespace-nowrap px-8 py-6 text-base font-black text-blue-popsicle">
+                              <div className="flex items-center gap-4">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-popsicle/5 text-blue-popsicle">
+                                  <svg
+                                    className="h-5 w-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2.5}
+                                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                  </svg>
+                                </div>
+                                {a.slot}
+                              </div>
+                            </td>
+                            <td className="px-8 py-6">
+                              <div className="flex flex-col gap-1">
+                                <span className="text-lg font-black text-blue-popsicle tracking-tight">
+                                  {a.patientId?.name || "Anonymous Patient"}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-grey-blue-leaf/50 tracking-tight">
+                                    {a.patientId?.email || "No contact info"}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-8 py-6 text-center">
+                              <span
+                                className={`inline-flex items-center rounded-xl border px-4 py-1.5 text-[10px] font-black uppercase tracking-wider ${getStatusStyles(a.status)}`}
+                              >
+                                {a.status}
+                              </span>
+                            </td>
+                            <td className="px-8 py-6 text-right">
+                              <div className="flex justify-end gap-3">
+                                {a.status === "pending" && (
+                                  <button
+                                    onClick={() =>
+                                      handleStatusUpdate(a._id, "confirmed")
+                                    }
+                                    className="rounded-xl bg-redline px-6 py-2 text-xs font-black text-white shadow-lg shadow-redline/20 transition-all hover:bg-redline/90 active:scale-95"
+                                  >
+                                    {t.confirmBtn}
+                                  </button>
+                                )}
+                                {a.status === "confirmed" && (
+                                  <button
+                                    onClick={() =>
+                                      handleStatusUpdate(a._id, "completed")
+                                    }
+                                    className="rounded-xl bg-emerald-500 px-6 py-2 text-xs font-black text-white shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-600 active:scale-95"
+                                  >
+                                    {t.markComplete}
+                                  </button>
+                                )}
+                                {(a.status === "pending" ||
+                                  a.status === "confirmed") && (
+                                  <button
+                                    onClick={() =>
+                                      handleStatusUpdate(a._id, "cancelled")
+                                    }
+                                    className="rounded-xl border-2 border-slate-100 bg-white px-6 py-2 text-xs font-black text-slate-400 transition-all hover:bg-slate-50 hover:text-redline hover:border-redline/20 active:scale-95"
+                                  >
+                                    {t.cancelBtn}
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </section>
+          </main>
+        </div>
 
         <Modal
           open={modalOpen}
           title={t.editAvailability}
           onClose={() => setModalOpen(false)}
         >
-          <div className="space-y-6 py-2">
+          <div className="min-h-0 space-y-6 py-2">
             {toast && (
               <div
                 className={`rounded-2xl px-4 py-3 text-sm font-medium ${
@@ -603,10 +734,7 @@ export default function DoctorDashboard() {
                         min="0"
                         value={profileForm.consultationFee}
                         onChange={(e) =>
-                          handleProfileChange(
-                            "consultationFee",
-                            e.target.value,
-                          )
+                          handleProfileChange("consultationFee", e.target.value)
                         }
                         className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
                       />
@@ -671,7 +799,7 @@ export default function DoctorDashboard() {
                   {availabilityRows.map((slot, index) => (
                     <div
                       key={`${slot.day}-${slot.startTime}-${slot.endTime}-${index}`}
-                      className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[1.2fr_1fr_1fr_auto]"
+                      className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:grid-cols-[1.2fr_1.5fr_1.5fr_1fr_1fr_auto]"
                     >
                       <label className="block text-sm font-medium text-slate-700">
                         Day
@@ -692,6 +820,40 @@ export default function DoctorDashboard() {
                             </option>
                           ))}
                         </select>
+                      </label>
+
+                      <label className="block text-sm font-medium text-slate-700">
+                        Clinic Name
+                        <input
+                          type="text"
+                          placeholder="e.g. City Clinic"
+                          value={slot.clinicName}
+                          onChange={(e) =>
+                            handleAvailabilityChange(
+                              index,
+                              "clinicName",
+                              e.target.value,
+                            )
+                          }
+                          className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                        />
+                      </label>
+
+                      <label className="block text-sm font-medium text-slate-700">
+                        Location
+                        <input
+                          type="text"
+                          placeholder="Area or Address"
+                          value={slot.location}
+                          onChange={(e) =>
+                            handleAvailabilityChange(
+                              index,
+                              "location",
+                              e.target.value,
+                            )
+                          }
+                          className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                        />
                       </label>
 
                       <label className="block text-sm font-medium text-slate-700">
@@ -755,7 +917,7 @@ export default function DoctorDashboard() {
               )}
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <div className="sticky bottom-0 -mx-4 -mb-4 flex flex-col gap-3 border-t border-slate-200 bg-white p-4 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}

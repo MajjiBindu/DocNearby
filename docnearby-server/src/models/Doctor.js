@@ -7,6 +7,12 @@ const slotSchema = new mongoose.Schema(
     startTime: { type: String, required: true }, // "09:00"
     endTime: { type: String, required: true }, // "13:00"
     slotDuration: { type: Number, required: true }, // minutes
+    clinicName: { type: String },
+    location: { type: String },
+    coordinates: {
+      type: { type: String, default: "Point" },
+      coordinates: { type: [Number], default: undefined },
+    },
   },
   { _id: false },
 )
@@ -27,6 +33,8 @@ const doctorSchema = new mongoose.Schema(
   },
   { versionKey: false },
 )
+
+doctorSchema.index({ "availableSlots.coordinates": "2dsphere" })
 
 export const Doctor = mongoose.model('Doctor', doctorSchema)
 

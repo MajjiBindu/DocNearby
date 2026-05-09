@@ -22,10 +22,13 @@ async function start() {
     import("./src/app.js"),
     import("./src/config/db.js"),
     import("./src/models/User.js"),
+    import("./src/jobs/reminderJob.js"),
   ]);
 
   await connectDb();
   await syncUserIndexes(User);
+  const { startReminderJob } = await import("./src/jobs/reminderJob.js");
+  startReminderJob();
   app.listen(PORT, () => {
     // eslint-disable-next-line no-console
     console.log(`DocNearby server listening on http://localhost:${PORT}`);

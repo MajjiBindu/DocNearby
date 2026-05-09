@@ -2,6 +2,7 @@ import { Doctor } from "../models/Doctor.js";
 import { Clinic } from "../models/Clinic.js";
 import { Appointment } from "../models/Appointment.js";
 import { DAYS } from "../config/constants.js";
+import axios from "axios";
 
 function ok(res, data = {}, message = "") {
   return res.json({ success: true, data, message, error: "" });
@@ -45,6 +46,23 @@ function dayRange(dateStr) {
   return { start, end };
 }
 
+async function geocodeAddress(address) {
+  if (!address) return null;
+  try {
+    const res = await axios.get("https://nominatim.openstreetmap.org/search", {
+      params: { format: "json", q: address, limit: 1 },
+      headers: { "User-Agent": "DocNearby/1.0" },
+    });
+    if (res.data && res.data[0]) {
+      const { lat, lon } = res.data[0];
+      return { type: "Point", coordinates: [parseFloat(lon), parseFloat(lat)] };
+    }
+  } catch (error) {
+    console.error(`[ERROR] Geocoding failed for "${address}":`, error.message);
+  }
+  return null;
+}
+
 export async function listDoctors(req, res) {
   const { specialty, language } = req.query;
   const maxFee = parseNumber(req.query.maxFee);
@@ -76,13 +94,38 @@ export async function listDoctors(req, res) {
     },
   }).select("_id");
   const clinicIds = clinics.map((c) => c._id);
-  if (!clinicIds.length) return ok(res, { doctors: [] }, "OK");
-  filterObj.clinicId = { $in: clinicIds };
 
-  const doctors = await Doctor.find(filterObj)
+  // Query 1: Find doctors at nearby clinics
+  const clinicDoctors = await Doctor.find({
+    ...filterObj,
+    clinicId: { $in: clinicIds },
+  })
     .populate("userId", "name email role")
     .populate("clinicId", "name address city state pincode location phone")
     .limit(100);
+
+  // Query 2: Find doctors with specific slots nearby
+  const slotDoctors = await Doctor.find({
+    ...filterObj,
+    "availableSlots.coordinates": {
+      $near: {
+        $geometry: { type: "Point", coordinates: [lng, lat] },
+        $maxDistance: radius,
+      },
+    },
+  })
+    .populate("userId", "name email role")
+    .populate("clinicId", "name address city state pincode location phone")
+    .limit(100);
+
+  // Merge and deduplicate
+  const allResults = [...clinicDoctors, ...slotDoctors];
+  const seenIds = new Set();
+  const doctors = allResults.filter((d) => {
+    if (seenIds.has(String(d._id))) return false;
+    seenIds.add(String(d._id));
+    return true;
+  });
 
   return ok(res, { doctors }, "OK");
 }
@@ -128,6 +171,9 @@ function normalizeSlot(slot) {
     startTime: String(slot?.startTime || "").trim(),
     endTime: String(slot?.endTime || "").trim(),
     slotDuration: Number(slot?.slotDuration) || 30,
+    clinicName: String(slot?.clinicName || "").trim(),
+    location: String(slot?.location || "").trim(),
+    coordinates: slot?.coordinates,
   };
 }
 
@@ -221,18 +267,35 @@ export async function updateAvailability(req, res) {
   if (!isOwner && !isAdmin) return fail(res, 403, "Forbidden", "not_owner");
 
   const { availableSlots } = req.body || {};
+  console.log("Received slots:", JSON.stringify(req.body.availableSlots));
   const result = validateAvailabilitySlots(availableSlots);
   if (!result.ok) {
     return fail(res, 400, result.error, result.detail || "invalid_slots");
   }
 
   doctor.availableSlots = result.slots;
+
+  // Geocode slots that have location but no coordinates
+  const slotsToGeocode = doctor.availableSlots.filter(
+    (s) => s.location && (!s.coordinates || !s.coordinates.coordinates),
+  );
+
+  if (slotsToGeocode.length > 0) {
+    await Promise.all(
+      slotsToGeocode.map(async (s) => {
+        const coords = await geocodeAddress(s.location);
+        if (coords) s.coordinates = coords;
+      }),
+    );
+  }
+
   await doctor.save();
 
   const updated = await Doctor.findById(doctor._id)
     .populate("userId", "name email role")
     .populate("clinicId", "name address city state pincode location phone");
 
+  console.log("Saved doctor slots:", JSON.stringify(updated.availableSlots));
   return ok(res, { doctor: updated }, "Availability updated successfully");
 }
 
