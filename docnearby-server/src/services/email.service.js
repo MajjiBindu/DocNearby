@@ -45,7 +45,7 @@ function appointmentTemplate({ title, intro, details }) {
   `;
 }
 
-async function sendEmail({ to, subject, html }) {
+export async function sendEmail({ to, subject, html }) {
   try {
     const transporter = createTransporter();
     const from = `"DocNearby" <${process.env.EMAIL_USER}>`;

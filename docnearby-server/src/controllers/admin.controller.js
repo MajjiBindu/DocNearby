@@ -2,6 +2,7 @@ import { Doctor } from '../models/Doctor.js'
 import { Appointment } from '../models/Appointment.js'
 import { Review } from '../models/Review.js'
 import mongoose from 'mongoose'
+import * as emailService from '../services/email.service.js'
 
 function ok(res, data = {}, message = '') {
   return res.json({ success: true, data, message, error: '' })
@@ -15,11 +16,10 @@ function fail(res, status, message, error = '') {
  * List all doctors awaiting verification
  * GET /api/admin/doctors/pending
  */
-export async function listPendingDoctors(req, res) {
+export async function getPendingDoctors(req, res) {
   try {
     const doctors = await Doctor.find({ isVerified: false })
       .populate('userId', 'name email')
-      .populate('clinicId', 'name city')
 
     return ok(res, { doctors })
   } catch (e) {
@@ -29,23 +29,40 @@ export async function listPendingDoctors(req, res) {
 
 /**
  * Verify a doctor
- * PATCH /api/admin/doctors/:id/verify
+ * POST /api/admin/verify/doctor/:id
  */
 export async function verifyDoctor(req, res) {
   const { id } = req.params
+  const { approve } = req.body
 
   try {
-    const doctor = await Doctor.findByIdAndUpdate(
-      id,
-      { isVerified: true },
-      { new: true },
-    )
-
+    const doctor = await Doctor.findById(id).populate('userId', 'name email')
     if (!doctor) {
       return fail(res, 404, 'Doctor not found', 'not_found')
     }
 
-    return ok(res, { doctor }, 'Doctor verified successfully')
+    doctor.isVerified = !!approve
+    await doctor.save()
+
+    // Send notification email
+    const subject = approve 
+      ? "Your DocNearby profile is approved" 
+      : "DocNearby verification update"
+    
+    const html = `
+      <div style="font-family: sans-serif; line-height: 1.5; color: #333;">
+        <h2>Hello Dr. ${doctor.userId?.name || 'Doctor'},</h2>
+        <p>${approve 
+          ? "We are pleased to inform you that your profile on DocNearby has been approved. You can now start receiving appointments." 
+          : "Thank you for your interest in DocNearby. At this time, we require further information for your profile verification. Please contact our support team."}
+        </p>
+        <p>Regards,<br>DocNearby Admin Team</p>
+      </div>
+    `
+
+    await emailService.sendEmail({ to: doctor.userId.email, subject, html })
+
+    return ok(res, { doctor }, approve ? 'Doctor verified successfully' : 'Doctor verification rejected')
   } catch (e) {
     return fail(res, 500, 'Internal Server Error', e.message)
   }
