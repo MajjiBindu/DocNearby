@@ -53,238 +53,216 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-transparent pb-20 pt-10">
-      <div className="mx-auto max-w-6xl px-4 space-y-12">
+    <div className="bg-medical-grey min-h-screen pb-20 pt-8 sm:pt-12">
+      <div className="section-container space-y-16">
         {/* Hero Section */}
-        <section className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-blue-popsicle to-purple-shadow p-8 md:p-12 shadow-2xl shadow-black/30 animate-in fade-in slide-in-from-top-4 duration-700">
-          <div className="relative z-10 max-w-4xl">
-            <h1 className="text-4xl md:text-5xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.1]">
+        <section className="relative grid lg:grid-cols-2 gap-12 items-center">
+          <div className="space-y-8 animate-in fade-in slide-in-from-left-4 duration-700">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary font-bold text-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+              </span>
+              Empowering Independent Clinics
+            </div>
+            
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-secondary leading-[1.1] tracking-tight">
               {t.tagline}
             </h1>
-            <p className="mt-6 max-w-2xl text-lg md:text-xl text-white/70 leading-relaxed font-medium">
-              Book appointments with independent doctors and smaller clinics in
-              your city. Experience healthcare without the middleman.
+            <p className="text-lg md:text-xl text-medical-text-light leading-relaxed max-w-xl">
+              DocNearby connects you directly with independent doctors and local clinics. 
+              Transparent healthcare without the corporate middleman.
             </p>
 
-            <div className="mt-10 grid gap-4 lg:grid-cols-[1fr_auto]">
-              <div className="relative">
-                <Input
-                  label={
-                    <span className="text-white/60 font-semibold">
-                      {t.city || "Your city"}
-                    </span>
-                  }
-                  placeholder="e.g. Warangal, Hubballi, Ujjain"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="rounded-2xl w-full bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:bg-white/10"
-                />
-              </div>
-              <div className="flex items-end">
-                <Button
-                  type="button"
-                  className="w-full lg:w-auto h-[52px] px-6 rounded-2xl bg-redline text-white border-redline hover:bg-redline/80 transition-all active:scale-95 border-2 shadow-lg shadow-redline/20"
-                  onClick={async () => {
-                    try {
-                      await getBrowserLocation();
-                    } catch {
-                      // ignore
-                    }
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <svg
-                      className="h-5 w-5 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2.5}
-                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2.5}
-                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                    <span className="font-bold">{t.useLocation}</span>
-                  </div>
-                </Button>
-              </div>
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <button 
+                onClick={handleSearchDoctors}
+                className="btn-primary !px-10 !py-4 text-lg"
+              >
+                {t.searchBtn}
+              </button>
+              <button 
+                onClick={() => navigate('/labs')}
+                className="btn-secondary !px-10 !py-4 text-lg"
+              >
+                Find Labs Near Me
+              </button>
             </div>
 
-            <div className="mt-10">
-              <p className="mb-4 text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">
+            <div className="pt-6">
+              <p className="text-xs font-bold text-medical-text-light uppercase tracking-widest mb-4">
                 {t.popularSpecialties}
               </p>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2">
                 {SPECIALTIES.slice(0, 6).map((s) => (
                   <button
                     key={s}
-                    type="button"
-                    className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-redline hover:border-redline hover:shadow-lg hover:shadow-redline/20 active:scale-95"
-                    onClick={() =>
-                      navigate(`/search?specialty=${encodeURIComponent(s)}`)
-                    }
+                    onClick={() => navigate(`/search?specialty=${encodeURIComponent(s)}`)}
+                    className="px-4 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold text-medical-text hover:border-primary hover:text-primary transition-all shadow-sm"
                   >
                     {s}
                   </button>
                 ))}
               </div>
             </div>
-
-            <div className="mt-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 border-t border-white/10 pt-8">
-              <p className="text-xs font-semibold text-white/40 text-center sm:text-left tracking-wide">
-                {coords ? (
-                  <span className="flex items-center justify-center sm:justify-start gap-2 text-emerald-400">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]"></span>
-                    GPS Active: {coords.lat.toFixed(3)}, {coords.lng.toFixed(3)}
-                  </span>
-                ) : (
-                  "Tip: GPS gives best nearby results."
-                )}
-              </p>
-              <Button
-                type="button"
-                onClick={handleSearchDoctors}
-                className="w-full sm:w-auto rounded-2xl !bg-redline text-white px-10 py-4 font-black text-lg hover:!bg-redline/80 shadow-2xl shadow-redline/30 transition-all active:scale-95 border-none"
-              >
-                {t.searchBtn}
-              </Button>
-            </div>
           </div>
 
-          {/* Decorative background elements */}
-          <div className="absolute -right-10 md:-right-20 -top-10 md:-top-20 h-48 md:h-96 w-48 md:w-96 rounded-full bg-redline/10 opacity-40 blur-3xl"></div>
-          <div className="absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-blue-popsicle/20 opacity-30 blur-3xl"></div>
+          <div className="relative animate-in fade-in slide-in-from-right-4 duration-700">
+            <div className="medical-card p-2">
+              <div className="relative aspect-square overflow-hidden rounded-xl">
+                <img 
+                  src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=1000&auto=format&fit=crop" 
+                  alt="Modern Clinic" 
+                  className="object-cover w-full h-full"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-secondary/40 to-transparent"></div>
+              </div>
+              
+              {/* Floating UI Elements */}
+              <div className="absolute -left-6 top-1/4 medical-card !rounded-2xl p-4 flex items-center gap-4 animate-bounce-slow">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-medical-text-light">Doctors Verified</p>
+                  <p className="text-sm font-black text-secondary">100% Secure</p>
+                </div>
+              </div>
+
+              <div className="absolute -right-6 bottom-1/4 medical-card !rounded-2xl p-4 flex items-center gap-4 animate-bounce-slow delay-500">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-medical-text-light">Instant Booking</p>
+                  <p className="text-sm font-black text-secondary">24/7 Access</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Search & Location Bar */}
+        <section className="medical-card p-6 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="grid lg:grid-cols-[1fr_auto] gap-6 items-end">
+            <div className="grid sm:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="medical-label">{t.city || "Search City"}</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-medical-text-light">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    </svg>
+                  </span>
+                  <input 
+                    type="text"
+                    placeholder="e.g. Hyderabad, Warangal"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="medical-input !pl-11"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="medical-label">GPS Precision</label>
+                <button 
+                  onClick={getBrowserLocation}
+                  className="btn-secondary w-full flex items-center justify-center gap-3 h-[52px]"
+                >
+                  <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  {t.useLocation}
+                </button>
+              </div>
+            </div>
+            <button 
+              onClick={handleSearchDoctors}
+              className="btn-primary !h-[52px] !px-12 text-lg"
+            >
+              {t.searchBtn}
+            </button>
+          </div>
         </section>
 
         {/* Symptom Checker Section */}
-        <section className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-purple-shadow shadow-2xl shadow-black/30 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-          <div className="bg-blue-popsicle px-8 py-8 md:py-10">
-            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">
+        <section className="grid lg:grid-cols-[1fr_1.5fr] gap-8 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200">
+          <div className="space-y-6">
+            <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+            <h2 className="text-3xl font-extrabold text-secondary tracking-tight">
               {t.notSure}
             </h2>
-            <p className="mt-2 text-base text-white/60 font-medium">
-              {t.describeSymptoms}
+            <p className="text-medical-text-light text-lg">
+              Describe your symptoms and our system will suggest the right specialist for you.
             </p>
           </div>
 
-          <div className="p-8">
-            <div className="space-y-8">
-              <div className="relative group">
-                <textarea
-                  className="w-full rounded-[1.5rem] border border-white/10 bg-white/5 p-6 md:p-8 text-lg text-white transition-all focus:ring-8 focus:ring-blue-popsicle/20 focus:border-blue-popsicle/50 outline-none placeholder:text-white/20 resize-none shadow-inner"
-                  rows={4}
-                  placeholder={t.symptomPlaceholder}
-                  value={symptoms}
-                  onChange={(e) => setSymptoms(e.target.value)}
-                />
-                <div className="absolute bottom-3 md:bottom-4 right-3 md:right-4 flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white/40 shadow-sm opacity-0 group-focus-within:opacity-100 transition-opacity">
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
+          <div className="medical-card p-8 space-y-6">
+            <textarea
+              className="medical-input min-h-[160px] resize-none text-lg"
+              placeholder={t.symptomPlaceholder}
+              value={symptoms}
+              onChange={(e) => setSymptoms(e.target.value)}
+            />
+            
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+              <button
+                onClick={handleSuggest}
+                disabled={loading}
+                className="btn-primary !px-10 !h-14 !text-lg w-full sm:w-auto disabled:opacity-50"
+              >
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    Analyzing...
+                  </span>
+                ) : t.findSpecialist}
+              </button>
+
+              {error && (
+                <p className="text-red-500 font-semibold flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-                <Button
-                  type="button"
-                  onClick={handleSuggest}
-                  disabled={loading}
-                  className="w-full sm:flex-1 rounded-2xl !bg-redline text-white px-10 h-14 font-black text-lg hover:!bg-redline/80 shadow-2xl shadow-redline/30 transition-all active:scale-95 border-none"
-                >
-                  {loading ? (
-                    <div className="flex items-center justify-center gap-3">
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
-                      <span>{t.loading || "Finding..."}</span>
-                    </div>
-                  ) : (
-                    <span>{t.findSpecialist}</span>
-                  )}
-                </Button>
-
-                {error && (
-                  <div className="flex items-center gap-2 text-sm font-bold text-red-500 animate-in shake-in duration-300">
-                    <svg
-                      className="h-4 w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    {error}
-                  </div>
-                )}
-              </div>
-
-              {suggestions.length > 0 && (
-                <div className="mt-12 rounded-[2rem] border border-white/10 bg-white/5 p-6 md:p-10 animate-in zoom-in-95 duration-500">
-                  <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-6">
-                    {t.weSuggest}
-                  </p>
-                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    {suggestions.map((s) => (
-                      <div
-                        key={s}
-                        className="flex flex-col justify-between p-6 rounded-2xl bg-white/5 border border-white/10 shadow-xl transition-all group"
-                      >
-                        <div>
-                          <h3 className="text-xl font-black text-white">
-                            {s}
-                          </h3>
-                        </div>
-                        <button
-                          type="button"
-                          className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-redline px-5 py-3 text-sm font-bold text-white transition-all hover:bg-redline/80 active:scale-95 shadow-lg shadow-redline/20"
-                          onClick={() =>
-                            navigate(
-                              `/search?specialty=${encodeURIComponent(s)}`,
-                            )
-                          }
-                        >
-                          Find Doctors
-                          <svg
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2.5}
-                              d="M17 8l4 4m0 0l-4 4m4-4H3"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                  {error}
+                </p>
               )}
             </div>
+
+            {suggestions.length > 0 && (
+              <div className="pt-8 border-t border-slate-100 animate-in zoom-in-95 duration-500">
+                <p className="text-xs font-bold text-medical-text-light uppercase tracking-widest mb-6">
+                  {t.weSuggest}
+                </p>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {suggestions.map((s) => (
+                    <div
+                      key={s}
+                      className="p-4 rounded-xl border border-slate-100 bg-slate-50 flex items-center justify-between group hover:border-primary transition-all"
+                    >
+                      <span className="font-bold text-secondary">{s}</span>
+                      <button
+                        onClick={() => navigate(`/search?specialty=${encodeURIComponent(s)}`)}
+                        className="text-primary font-bold text-sm hover:underline flex items-center gap-1"
+                      >
+                        Find Doctors
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </section>
       </div>

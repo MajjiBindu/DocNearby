@@ -2,80 +2,85 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 html,
 body,
 #root {
   height: 100%;
-  overflow-x: hidden;
+  @apply font-sans;
 }
 
 body {
-  @apply bg-purple-shadow text-slate-900;
+  @apply bg-medical-grey text-medical-text antialiased;
 }
 
+/* Custom Scrollbar */
 .scrollbar-thin {
   scrollbar-width: thin;
 }
 
 .scrollbar-thin::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  border-radius: 9999px;
-  background-color: rgb(203 213 225);
+  @apply rounded-full bg-slate-300 hover:bg-slate-400 transition-colors;
+}
+
+/* Layout Utilities */
+.section-container {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+/* Component Base Styles */
+.medical-card {
+  @apply bg-white rounded-2xl shadow-medical border border-slate-100 overflow-hidden transition-all duration-300 hover:shadow-medical-hover;
+}
+
+.btn-primary {
+  @apply bg-primary text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-primary-dark transition-all active:scale-[0.98] shadow-sm;
+}
+
+.btn-secondary {
+  @apply bg-white text-secondary border border-slate-200 px-6 py-2.5 rounded-xl font-semibold hover:bg-slate-50 transition-all active:scale-[0.98];
+}
+
+/* Form Styles */
+.medical-input {
+  @apply w-full bg-white border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-medical-text placeholder:text-medical-text-light;
+}
+
+.medical-label {
+  @apply text-medical-text font-semibold text-sm mb-1.5 block;
 }
 
 /* Navbar Language Switcher Polish */
 .nav-lang-switcher button {
-  @apply !bg-white/5 !border-white/10 !text-white hover:!bg-white/10 !shadow-none !transition-all !duration-200;
+  @apply !bg-slate-50 !border-slate-100 !text-medical-text hover:!bg-slate-100 !shadow-none !transition-all !duration-200;
 }
 
 .nav-lang-switcher button svg {
-  @apply !text-white/60;
+  @apply !text-primary;
 }
 
 .nav-lang-switcher button span {
-  @apply !text-white/90 font-medium;
+  @apply !text-medical-text font-medium;
 }
 
-/* Ensure dropdowns look premium */
 .nav-lang-switcher [role="menu"] {
-  @apply !bg-blue-popsicle !border-white/10 !shadow-2xl !text-white;
+  @apply !bg-white !border-slate-100 !shadow-xl !text-medical-text;
 }
 
 .nav-lang-switcher [role="menuitem"] {
-  @apply hover:!bg-white/10 !text-white/80;
+  @apply hover:!bg-slate-50 !text-medical-text-light;
 }
 
 .nav-lang-switcher [role="menuitem"].bg-indigo-50 {
-  @apply !bg-redline !text-white font-bold;
+  @apply !bg-primary-light !text-primary-dark font-bold;
 }
 
 .nav-lang-switcher p {
-  @apply !text-white/40;
-}
-
-/* Search Sidebar Polish */
-aside select, 
-.lg\:hidden select,
-aside input,
-.lg\:hidden input {
-  @apply !bg-white/5 !border-white/10 !text-white focus:!bg-white/10 focus:!ring-blue-popsicle/50 !transition-all !duration-200 !rounded-xl !px-4 !py-2.5 !appearance-none !outline-none !shadow-none !important;
-}
-
-aside label,
-.lg\:hidden label {
-  @apply !text-white/40 !text-[10px] !font-black !uppercase !tracking-[0.2em] !mb-3 !block !important;
-}
-
-aside option,
-.lg\:hidden option {
-  @apply !bg-purple-shadow !text-white !important;
-}
-
-/* Button Refinements */
-.doctor-card-view {
-  @apply bg-redline text-white px-5 py-2 rounded-xl font-bold hover:bg-redline/90 transition-all active:scale-95 shadow-lg shadow-redline/20;
+  @apply !text-medical-text-light/60;
 }
 

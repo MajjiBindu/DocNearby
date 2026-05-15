@@ -8,7 +8,6 @@ export default function Navbar() {
   const { token, user, logout } = useAuth();
   const navigate = useNavigate();
 
-  // Initialize language from localStorage or default to 'en'
   const [lang, setLang] = useState(
     () => localStorage.getItem("dn_lang") || "en",
   );
@@ -27,142 +26,68 @@ export default function Navbar() {
   const toggleMenu = () => setMenuOpen(!menuOpen);
 
   return (
-    <header className="bg-blue-popsicle sticky top-0 z-50 shadow-lg">
-      <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <Link to="/" className="font-bold text-white text-xl tracking-tight">
-            {t.brand}
+    <header className="bg-white sticky top-0 z-50 border-b border-slate-100 shadow-sm">
+      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8 flex items-center justify-between">
+        <div className="flex items-center gap-8">
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-bold text-2xl group-hover:bg-primary-dark transition-colors">
+              D
+            </div>
+            <span className="font-extrabold text-secondary text-2xl tracking-tight hidden sm:block">
+              Doc<span className="text-primary">Nearby</span>
+            </span>
           </Link>
 
-          {/* Language Switcher - Hidden on mobile */}
-          <div className="hidden md:block nav-lang-switcher">
+          <div className="hidden lg:block nav-lang-switcher">
             <LanguageSwitcher />
           </div>
         </div>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-6 text-sm">
-          <NavLink
-            to="/search"
-            className={({ isActive }) =>
-              `transition-all hover:underline decoration-redline decoration-2 underline-offset-8 ${isActive ? "text-redline font-bold" : "text-white/90"}`
-            }
-          >
-            {t.search}
-          </NavLink>
-          <NavLink
-            to="/labs"
-            className={({ isActive }) =>
-              `transition-all hover:underline decoration-redline decoration-2 underline-offset-8 ${isActive ? "text-redline font-bold" : "text-white/90"}`
-            }
-          >
-            {t.nearby}
-          </NavLink>
-
-          {token ? (
-            <>
-              <NavLink
-                to={user?.role === "doctor" ? "/doctor" : "/patient"}
-                className="text-white/90 hover:text-redline transition-colors"
-              >
-                {t.dashboard}
-              </NavLink>
-              <button
-                className="rounded-xl border border-white/20 px-4 py-1.5 text-white hover:bg-white/10 transition-all active:scale-95"
-                onClick={() => {
-                  logout();
-                  navigate("/login");
-                }}
-                type="button"
-              >
-                {t.logout}
-              </button>
-            </>
-          ) : (
-            <NavLink
-              to="/login"
-              className="rounded-xl bg-redline text-white px-6 py-2 hover:bg-redline/90 transition-all active:scale-95 shadow-lg shadow-black/20"
-            >
-              {t.login}
-            </NavLink>
-          )}
-        </nav>
-
-        {/* Mobile Menu Button */}
-        <button
-          onClick={toggleMenu}
-          className="md:hidden p-2 rounded-lg hover:bg-white/10 transition-colors"
-          aria-label="Toggle menu"
-        >
-          <svg
-            className="h-6 w-6 text-white"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            {menuOpen ? (
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            ) : (
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            )}
-          </svg>
-        </button>
-      </div>
-
-      {/* Mobile Menu */}
-      {menuOpen && (
-        <div className="md:hidden bg-blue-popsicle px-4 py-4 space-y-4 animate-in slide-in-from-top-2 duration-300 shadow-xl">
-          {/* Language Switcher - Mobile */}
-          <div className="flex justify-center py-2 border-b border-white/10 nav-lang-switcher">
-            <LanguageSwitcher />
-          </div>
-
-          {/* Mobile Navigation Links */}
-          <nav className="flex flex-col space-y-3">
+        <nav className="hidden md:flex items-center gap-8">
+          <div className="flex items-center gap-6">
             <NavLink
               to="/search"
               className={({ isActive }) =>
-                `px-4 py-2 rounded-lg transition-colors hover:bg-white/10 ${isActive ? "text-redline font-bold bg-white/5" : "text-white"}`
+                `text-sm font-semibold transition-colors hover:text-primary ${isActive ? "text-primary" : "text-medical-text"}`
               }
-              onClick={() => setMenuOpen(false)}
             >
               {t.search}
             </NavLink>
             <NavLink
               to="/labs"
               className={({ isActive }) =>
-                `px-4 py-2 rounded-lg transition-colors hover:bg-white/10 ${isActive ? "text-redline font-bold bg-white/5" : "text-white"}`
+                `text-sm font-semibold transition-colors hover:text-primary ${isActive ? "text-primary" : "text-medical-text"}`
               }
-              onClick={() => setMenuOpen(false)}
             >
               {t.nearby}
             </NavLink>
+            <NavLink
+              to="/clinics"
+              className={({ isActive }) =>
+                `text-sm font-semibold transition-colors hover:text-primary ${isActive ? "text-primary" : "text-medical-text"}`
+              }
+            >
+              Clinics
+            </NavLink>
+          </div>
 
+          <div className="h-6 w-px bg-slate-200 hidden lg:block"></div>
+
+          <div className="flex items-center gap-4">
             {token ? (
               <>
                 <NavLink
                   to={user?.role === "doctor" ? "/doctor" : "/patient"}
-                  className="px-4 py-2 rounded-lg text-white hover:bg-white/10 transition-colors"
-                  onClick={() => setMenuOpen(false)}
+                  className="text-sm font-semibold text-secondary hover:text-primary transition-colors"
                 >
                   {t.dashboard}
                 </NavLink>
                 <button
-                  className="w-full text-left px-4 py-2 rounded-lg border border-white/20 text-white hover:bg-white/10 transition-all"
+                  className="btn-secondary !py-1.5 !px-4 !text-sm"
                   onClick={() => {
                     logout();
                     navigate("/login");
-                    setMenuOpen(false);
                   }}
                   type="button"
                 >
@@ -172,12 +97,93 @@ export default function Navbar() {
             ) : (
               <NavLink
                 to="/login"
-                className="w-full text-center px-4 py-3 rounded-lg bg-redline text-white hover:bg-redline/90 transition-all shadow-lg"
-                onClick={() => setMenuOpen(false)}
+                className="btn-primary !py-2 !px-6 !text-sm"
               >
                 {t.login}
               </NavLink>
             )}
+          </div>
+        </nav>
+
+        {/* Mobile Menu Button */}
+        <button
+          onClick={toggleMenu}
+          className="md:hidden p-2 rounded-xl text-secondary hover:bg-slate-50 transition-colors border border-slate-100"
+          aria-label="Toggle menu"
+        >
+          <svg
+            className="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            {menuOpen ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            )}
+          </svg>
+        </button>
+      </div>
+
+      {/* Mobile Menu */}
+      {menuOpen && (
+        <div className="md:hidden bg-white border-t border-slate-100 px-4 py-6 space-y-6 animate-in slide-in-from-top-2 duration-300">
+          <div className="flex justify-center pb-4 border-b border-slate-100 nav-lang-switcher">
+            <LanguageSwitcher />
+          </div>
+
+          <nav className="flex flex-col gap-2">
+            <NavLink
+              to="/search"
+              className={({ isActive }) =>
+                `px-4 py-3 rounded-xl text-base font-semibold transition-all ${isActive ? "bg-primary-light text-primary-dark" : "text-medical-text hover:bg-slate-50"}`
+              }
+              onClick={() => setMenuOpen(false)}
+            >
+              {t.search}
+            </NavLink>
+            <NavLink
+              to="/labs"
+              className={({ isActive }) =>
+                `px-4 py-3 rounded-xl text-base font-semibold transition-all ${isActive ? "bg-primary-light text-primary-dark" : "text-medical-text hover:bg-slate-50"}`
+              }
+              onClick={() => setMenuOpen(false)}
+            >
+              {t.nearby}
+            </NavLink>
+            
+            <div className="pt-4 flex flex-col gap-3">
+              {token ? (
+                <>
+                  <NavLink
+                    to={user?.role === "doctor" ? "/doctor" : "/patient"}
+                    className="px-4 py-3 rounded-xl text-base font-semibold text-secondary hover:bg-slate-50"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    {t.dashboard}
+                  </NavLink>
+                  <button
+                    className="w-full btn-secondary"
+                    onClick={() => {
+                      logout();
+                      navigate("/login");
+                      setMenuOpen(false);
+                    }}
+                  >
+                    {t.logout}
+                  </button>
+                </>
+              ) : (
+                <NavLink
+                  to="/login"
+                  className="w-full btn-primary text-center"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {t.login}
+                </NavLink>
+              )}
+            </div>
           </nav>
         </div>
       )}

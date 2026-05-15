@@ -1,8 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import OtpInput from "../components/auth/OtpInput.jsx";
-import Button from "../components/common/Button.jsx";
-import Input from "../components/common/Input.jsx";
 import { authApi } from "../services/api.js";
 import { useAuth } from "../hooks/useAuth.js";
 
@@ -138,146 +136,190 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-purple-shadow flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white p-8 md:p-10 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.6)]">
-        <div className="mb-6 md:mb-5">
-          <h1 className="text-2xl md:text-3xl font-semibold text-slate-900">
-            {mode === "signup" ? "Create your account" : "Login"}
-          </h1>
-          <p className="mt-2 md:mt-1 text-sm md:text-base text-slate-600">
-            {step === "otp"
-              ? `We sent a verification code to ${email}.`
-              : "Use email, password, and email OTP verification."}
-          </p>
-        </div>
-
-        <div className="mb-6 md:mb-5 grid grid-cols-2 rounded-md border border-slate-200 bg-slate-50 p-1">
-          <button
-            type="button"
-            onClick={() => switchMode("login")}
-            className={`rounded px-3 py-2 text-sm font-medium transition-colors ${
-              mode === "login"
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-600 hover:text-slate-800"
-            }`}
-            disabled={loading}
-          >
-            Login
-          </button>
-          <button
-            type="button"
-            onClick={() => switchMode("signup")}
-            className={`rounded px-3 py-2 text-sm font-medium transition-colors ${
-              mode === "signup"
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-600 hover:text-slate-800"
-            }`}
-            disabled={loading}
-          >
-            Sign up
-          </button>
-        </div>
-
-        {step === "credentials" ? (
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              requestOtp();
-            }}
-          >
-            {mode === "signup" ? (
-              <>
-                <Input
-                  label="Full name"
-                  placeholder="Your full name"
-                  value={form.name}
-                  onChange={(e) => updateForm("name", e.target.value)}
-                  autoComplete="name"
-                />
-                <label className="block">
-                  <span className="mb-1 block text-sm text-slate-700">
-                    Role
-                  </span>
-                  <select
-                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                    value={form.role}
-                    onChange={(e) => updateForm("role", e.target.value)}
-                  >
-                    <option value="patient">Patient</option>
-                    <option value="doctor">Doctor</option>
-                  </select>
-                </label>
-              </>
-            ) : null}
-
-            <Input
-              label="Email"
-              placeholder="you@example.com"
-              type="email"
-              value={form.email}
-              onChange={(e) => updateForm("email", e.target.value)}
-              autoComplete="email"
-            />
-            <Input
-              label="Password"
-              placeholder="At least 8 characters"
-              type="password"
-              value={form.password}
-              onChange={(e) => updateForm("password", e.target.value)}
-              autoComplete={
-                mode === "signup" ? "new-password" : "current-password"
-              }
-            />
-            <Button type="submit" disabled={loading} className="w-full !bg-redline !text-white hover:!bg-redline/80 font-bold border-none h-12 rounded-xl shadow-lg shadow-redline/20 transition-all active:scale-95">
-              {loading ? "Sending..." : "Send email OTP"}
-            </Button>
-          </form>
-        ) : (
-          <div className="space-y-6">
-            <OtpInput otp={otp} setOtp={setOtp} />
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button
-                type="button"
-                onClick={verifyOtp}
-                disabled={loading}
-                className="flex-1 h-11 md:h-12"
-              >
-                {loading ? "Verifying..." : "Verify OTP"}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={resendOtp}
-                disabled={loading}
-                className="h-11 md:h-12"
-              >
-                Resend
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setStep("credentials");
-                  setOtp("");
-                  setMessage("");
-                  setError("");
-                }}
-                disabled={loading}
-                className="h-11 md:h-12"
-              >
-                Edit
-              </Button>
-            </div>
+    <div className="min-h-screen bg-medical-grey flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-[440px]">
+        {/* Brand/Logo Section */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-lg shadow-primary/20 mb-4">
+            D
           </div>
-        )}
+          <h2 className="text-2xl font-black text-secondary tracking-tight">DocNearby</h2>
+          <p className="text-medical-text-light font-medium text-sm">Empowering Local Healthcare</p>
+        </div>
 
-        {error ? (
-          <p className="mt-4 text-sm font-medium text-red-600">{error}</p>
-        ) : null}
-        {message ? (
-          <p className="mt-4 text-sm text-slate-700">{message}</p>
-        ) : null}
+        <div className="medical-card p-8 md:p-10 !shadow-2xl">
+          <div className="mb-8">
+            <h1 className="text-2xl font-extrabold text-secondary tracking-tight">
+              {mode === "signup" ? "Create Account" : "Welcome Back"}
+            </h1>
+            <p className="mt-2 text-sm font-medium text-medical-text-light">
+              {step === "otp"
+                ? `Enter the verification code sent to ${email}`
+                : "Secure access to your healthcare dashboard"}
+            </p>
+          </div>
+
+          {step === "credentials" && (
+            <div className="mb-8 flex p-1 bg-slate-50 rounded-xl border border-slate-100">
+              <button
+                onClick={() => switchMode("login")}
+                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${
+                  mode === "login" ? "bg-white text-primary shadow-sm" : "text-medical-text-light hover:text-medical-text"
+                }`}
+              >
+                Login
+              </button>
+              <button
+                onClick={() => switchMode("signup")}
+                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${
+                  mode === "signup" ? "bg-white text-primary shadow-sm" : "text-medical-text-light hover:text-medical-text"
+                }`}
+              >
+                Sign Up
+              </button>
+            </div>
+          )}
+
+          {step === "credentials" ? (
+            <form
+              className="space-y-5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                requestOtp();
+              }}
+            >
+              {mode === "signup" && (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="medical-label">Full Name</label>
+                    <input
+                      type="text"
+                      placeholder="Enter your name"
+                      value={form.name}
+                      onChange={(e) => updateForm("name", e.target.value)}
+                      className="medical-input"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="medical-label">I am a</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => updateForm("role", "patient")}
+                        className={`py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
+                          form.role === "patient" ? "border-primary bg-primary/5 text-primary" : "border-slate-100 bg-white text-medical-text-light hover:border-slate-200"
+                        }`}
+                      >
+                        Patient
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateForm("role", "doctor")}
+                        className={`py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
+                          form.role === "doctor" ? "border-primary bg-primary/5 text-primary" : "border-slate-100 bg-white text-medical-text-light hover:border-slate-200"
+                        }`}
+                      >
+                        Doctor
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="medical-label">Email Address</label>
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={form.email}
+                  onChange={(e) => updateForm("email", e.target.value)}
+                  className="medical-input"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="medical-label">Password</label>
+                <input
+                  type="password"
+                  placeholder="Minimum 8 characters"
+                  value={form.password}
+                  onChange={(e) => updateForm("password", e.target.value)}
+                  className="medical-input"
+                  required
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={loading} 
+                className="btn-primary w-full !py-3.5 !text-base disabled:opacity-50"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    Sending OTP...
+                  </span>
+                ) : (
+                  "Continue to Verify"
+                )}
+              </button>
+            </form>
+          ) : (
+            <div className="space-y-8">
+              <OtpInput otp={otp} setOtp={setOtp} />
+              
+              <div className="space-y-4">
+                <button
+                  onClick={verifyOtp}
+                  disabled={loading}
+                  className="btn-primary w-full !py-3.5 !text-base disabled:opacity-50"
+                >
+                  {loading ? "Verifying..." : "Secure Login"}
+                </button>
+                
+                <div className="flex items-center justify-between gap-4">
+                  <button
+                    onClick={resendOtp}
+                    disabled={loading}
+                    className="text-sm font-bold text-primary hover:underline"
+                  >
+                    Resend OTP
+                  </button>
+                  <button
+                    onClick={() => setStep("credentials")}
+                    className="text-sm font-bold text-medical-text-light hover:text-medical-text"
+                  >
+                    Change Email
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-6 p-3 rounded-lg bg-red-50 border border-red-100 text-red-600 text-sm font-bold flex items-center gap-2 animate-in shake-in duration-300">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {error}
+            </div>
+          )}
+          
+          {message && (
+            <div className="mt-6 p-3 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm font-bold flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {message}
+            </div>
+          )}
+        </div>
+
+        <p className="mt-8 text-center text-xs text-medical-text-light font-medium max-w-xs mx-auto">
+          By continuing, you agree to our <span className="text-secondary font-bold hover:underline cursor-pointer">Terms of Service</span> and <span className="text-secondary font-bold hover:underline cursor-pointer">Privacy Policy</span>.
+        </p>
       </div>
     </div>
   );
