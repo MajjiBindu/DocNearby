@@ -75,7 +75,14 @@ export const labApi = {
 export const adminApi = {
   pendingDoctors: () => unwrap(api.get("/admin/doctors/pending")),
   verifyDoctor: (id) => unwrap(api.patch(`/admin/doctors/${id}/verify`)),
+  rejectDoctor: (id, reason) => unwrap(api.patch(`/admin/doctors/${id}/reject`, { reason })),
   allAppointments: (params) =>
     unwrap(api.get("/admin/appointments", { params })),
   deleteReview: (id) => unwrap(api.delete(`/admin/reviews/${id}`)),
+  stats: () => unwrap(api.get("/admin/stats")),
+  users: (params) => unwrap(api.get("/admin/users", { params })),
+  updateUserRole: (id, role) => unwrap(api.patch(`/admin/users/${id}/role`, { role })),
+  reviews: (params) => unwrap(api.get("/admin/reviews", { params })),
+  getUsers: () => unwrap(api.get("/admin/users")),
+  deactivateUser: (id) => unwrap(api.patch(`/admin/users/${id}/deactivate`)),
 };

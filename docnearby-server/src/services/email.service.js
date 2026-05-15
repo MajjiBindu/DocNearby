@@ -179,9 +179,69 @@ export function sendAppointmentReminder(
       intro: `This is a friendly reminder of your appointment scheduled for tomorrow.`,
       details: {
         Doctor: doctorName,
-        Date: "Tomorrow",
+        Date: new Date(date).toLocaleDateString("en-IN", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
         Time: slot,
         Location: clinicInfo,
+      },
+    }),
+  });
+}
+
+export function sendAppointmentReminderToDoctor(
+  to,
+  { doctorName, date, slot, clinicInfo },
+) {
+  return sendEmail({
+    to,
+    subject: `Reminder: You have an appointment tomorrow`,
+    html: appointmentTemplate({
+      title: "Appointment Reminder",
+      intro: `You have an appointment scheduled for tomorrow.`,
+      details: {
+        Doctor: doctorName,
+        Date: new Date(date).toLocaleDateString("en-IN", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+        Time: slot,
+        Location: clinicInfo,
+      },
+    }),
+  });
+}
+
+export function sendDoctorVerifiedEmail(to, { doctorName }) {
+  return sendEmail({
+    to,
+    subject: "Your DocNearby profile is verified",
+    html: appointmentTemplate({
+      title: "Profile Verified",
+      intro: `Hello Dr. ${doctorName}, we are pleased to inform you that your profile on DocNearby has been verified.`,
+      details: {
+        Status: "Verified ✓",
+        "Next step": "Log in and complete your profile",
+      },
+    }),
+  });
+}
+
+export function sendDoctorRejectedEmail(to, { doctorName, reason }) {
+  return sendEmail({
+    to,
+    subject: "DocNearby profile review update",
+    html: appointmentTemplate({
+      title: "Profile Review Update",
+      intro: `Hello Dr. ${doctorName}, thank you for your interest in DocNearby.`,
+      details: {
+        Status: "Not approved",
+        Reason: reason || "Does not meet verification criteria",
       },
     }),
   });

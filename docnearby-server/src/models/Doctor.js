@@ -30,6 +30,8 @@ const doctorSchema = new mongoose.Schema(
     isVerified: { type: Boolean, default: false },
     rating: { type: Number, default: 0 },
     reviewCount: { type: Number, default: 0 },
+    rejectedAt: { type: Date },
+    rejectionReason: { type: String },
   },
   { versionKey: false },
 )

@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true, select: false },
     role: { type: String, enum: ROLES, default: "patient" },
     isVerified: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
     otpHash: { type: String, select: false },
     otpExpiry: { type: Date },
   },
