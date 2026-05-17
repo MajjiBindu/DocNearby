@@ -9,35 +9,18 @@ import {
 } from "../controllers/doctor.controller.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { requireRole } from "../middleware/role.middleware.js";
+import validate from "../middleware/validate.middleware.js";
+import { updateDoctorSchema } from "../validators/doctor.validator.js";
 
 const router = Router();
 
-router.get("/", (req, res, next) =>
-  Promise.resolve(listDoctors(req, res)).catch(next),
-);
-router.get(
-  "/me",
-  requireAuth,
-  requireRole(["doctor", "admin"]),
-  (req, res, next) => Promise.resolve(getMyDoctor(req, res)).catch(next),
-);
-router.get("/:id", (req, res, next) =>
-  Promise.resolve(getDoctor(req, res)).catch(next),
-);
-router.put(
-  "/:id/availability",
-  requireAuth,
-  requireRole(["doctor", "admin"]),
-  (req, res, next) => Promise.resolve(updateAvailability(req, res)).catch(next),
-);
-router.put(
-  "/:id",
-  requireAuth,
-  requireRole(["doctor", "admin"]),
-  (req, res, next) => Promise.resolve(updateDoctor(req, res)).catch(next),
-);
-router.get("/:id/slots", (req, res, next) =>
-  Promise.resolve(getDoctorSlots(req, res)).catch(next),
-);
+router.get("/", listDoctors);
+router.get("/me", requireAuth, requireRole(["doctor", "admin"]), getMyDoctor);
+router.get("/:id", getDoctor);
+router.put("/:id/availability", requireAuth, requireRole(["doctor", "admin"]), validate(updateDoctorSchema), updateAvailability);
+router.patch("/:id/availability", requireAuth, requireRole(["doctor", "admin"]), validate(updateDoctorSchema), updateAvailability);
+router.put("/:id", requireAuth, requireRole(["doctor", "admin"]), validate(updateDoctorSchema), updateDoctor);
+router.patch("/:id", requireAuth, requireRole(["doctor", "admin"]), validate(updateDoctorSchema), updateDoctor);
+router.get("/:id/slots", getDoctorSlots);
 
 export default router;

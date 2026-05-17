@@ -1,344 +1,73 @@
-import { Doctor } from "../models/Doctor.js";
-import { Clinic } from "../models/Clinic.js";
-import { Appointment } from "../models/Appointment.js";
-import { DAYS } from "../config/constants.js";
-import axios from "axios";
+import * as doctorService from '../services/doctor.service.js';
+import { Appointment } from '../models/Appointment.js';
+import asyncHandler from '../middleware/asyncHandler.js';
+import { sendResponse } from '../utils/response.js';
+import AppError from '../utils/AppError.js';
+import { parseNumber, dayOfWeekShort, minutesFromHHMM, formatAMPM } from '../utils/dateTime.js';
 
-function ok(res, data = {}, message = "") {
-  return res.json({ success: true, data, message, error: "" });
-}
-function fail(res, status, message, error = "") {
-  return res.status(status).json({ success: false, data: {}, message, error });
-}
-
-function parseNumber(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-function dayOfWeekShort(date) {
-  const d = new Date(date);
-  const map = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  return map[d.getDay()];
-}
-
-function minutesFromHHMM(hhmm) {
-  const [h, m] = String(hhmm || "")
-    .split(":")
-    .map(Number);
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-  return h * 60 + m;
-}
-
-function formatAMPM(totalMinutes) {
-  const h24 = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  const ampm = h24 >= 12 ? "PM" : "AM";
-  const h12 = ((h24 + 11) % 12) + 1;
-  return `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`;
-}
-
-function dayRange(dateStr) {
-  // Interprets dateStr as local date in server timezone.
-  const start = new Date(`${dateStr}T00:00:00.000`);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  return { start, end };
-}
-
-async function geocodeAddress(address) {
-  if (!address) return null;
-  try {
-    const res = await axios.get("https://nominatim.openstreetmap.org/search", {
-      params: { format: "json", q: address, limit: 1 },
-      headers: { "User-Agent": "DocNearby/1.0" },
-    });
-    if (res.data && res.data[0]) {
-      const { lat, lon } = res.data[0];
-      return { type: "Point", coordinates: [parseFloat(lon), parseFloat(lat)] };
-    }
-  } catch (error) {
-    console.error(`[ERROR] Geocoding failed for "${address}":`, error.message);
-  }
-  return null;
-}
-
-export async function listDoctors(req, res) {
-  const { specialty, language } = req.query;
-  const maxFee = parseNumber(req.query.maxFee);
-  const lat = parseNumber(req.query.lat);
-  const lng = parseNumber(req.query.lng);
-  const radius = parseNumber(req.query.radius) ?? 5000;
-
-  const filterObj = {};
-  if (specialty) filterObj.specialty = specialty;
-  if (language) filterObj.languages = language;
-  if (maxFee !== null) filterObj.consultationFee = { $lte: Number(maxFee) };
-
-  if (lat === null || lng === null) {
-    const doctors = await Doctor.find(filterObj)
-      .populate("clinicId", "name address city")
-      .populate("userId", "name phone")
-      .sort({ rating: -1 })
-      .limit(20);
-
-    return ok(res, { doctors }, "OK");
-  }
-
-  const clinics = await Clinic.find({
-    location: {
-      $near: {
-        $geometry: { type: "Point", coordinates: [lng, lat] },
-        $maxDistance: radius,
-      },
-    },
-  }).select("_id");
-  const clinicIds = clinics.map((c) => c._id);
-
-  // Query 1: Find doctors at nearby clinics
-  const clinicDoctors = await Doctor.find({
-    ...filterObj,
-    clinicId: { $in: clinicIds },
-  })
-    .populate("userId", "name email role")
-    .populate("clinicId", "name address city state pincode location phone")
-    .limit(100);
-
-  // Query 2: Find doctors with specific slots nearby
-  const slotDoctors = await Doctor.find({
-    ...filterObj,
-    "availableSlots.coordinates": {
-      $near: {
-        $geometry: { type: "Point", coordinates: [lng, lat] },
-        $maxDistance: radius,
-      },
-    },
-  })
-    .populate("userId", "name email role")
-    .populate("clinicId", "name address city state pincode location phone")
-    .limit(100);
-
-  // Merge and deduplicate
-  const allResults = [...clinicDoctors, ...slotDoctors];
-  const seenIds = new Set();
-  const doctors = allResults.filter((d) => {
-    if (seenIds.has(String(d._id))) return false;
-    seenIds.add(String(d._id));
-    return true;
+/**
+ * @desc List all doctors with filters and location search
+ * @route GET /api/doctors
+ */
+export const listDoctors = asyncHandler(async (req, res) => {
+  const doctors = await doctorService.searchDoctors({
+    specialty: req.query.specialty,
+    language: req.query.language,
+    maxFee: parseNumber(req.query.maxFee),
+    lat: parseNumber(req.query.lat),
+    lng: parseNumber(req.query.lng),
+    radius: parseNumber(req.query.radius),
   });
 
-  return ok(res, { doctors }, "OK");
-}
+  return sendResponse(res, 200, "Doctors fetched successfully", { doctors });
+});
 
-export async function getDoctor(req, res) {
-  const doctor = await Doctor.findById(req.params.id)
-    .populate("userId", "name email role")
-    .populate("clinicId", "name address city state pincode location phone");
-  if (!doctor) return fail(res, 404, "Doctor not found", "doctor_not_found");
-  return ok(res, { doctor }, "OK");
-}
+/**
+ * @desc Get single doctor by ID
+ * @route GET /api/doctors/:id
+ */
+export const getDoctor = asyncHandler(async (req, res) => {
+  const doctor = await doctorService.findById(req.params.id);
+  return sendResponse(res, 200, "Doctor fetched successfully", { doctor });
+});
 
-export async function getMyDoctor(req, res) {
-  const doctor = await Doctor.findOne({ userId: req.user.userId })
-    .populate("userId", "name email role")
-    .populate("clinicId", "name address city state pincode location phone");
-  if (!doctor)
-    return fail(
-      res,
-      404,
-      "Doctor not found for current user",
-      "doctor_not_found",
-    );
-  return ok(res, { doctor }, "OK");
-}
+/**
+ * @desc Get current doctor's profile
+ * @route GET /api/doctors/me
+ */
+export const getMyDoctor = asyncHandler(async (req, res) => {
+  const doctor = await doctorService.findByUserId(req.user.userId);
+  return sendResponse(res, 200, "Profile fetched successfully", { doctor });
+});
 
-function parseTime(value) {
-  if (typeof value !== "string") return null;
-  const match = value.trim().match(/^([01]\d|2[0-3]):([0-5]\d)$/);
-  if (!match) return null;
-  return { hours: Number(match[1]), minutes: Number(match[2]) };
-}
+/**
+ * @desc Update availability slots
+ * @route PATCH /api/doctors/:id/availability
+ */
+export const updateAvailability = asyncHandler(async (req, res) => {
+  const doctor = await doctorService.update(req.params.id, { availableSlots: req.body.availableSlots }, req.user);
+  return sendResponse(res, 200, "Availability updated successfully", { doctor });
+});
 
-function timeToMinutes(value) {
-  const parsed = parseTime(value);
-  if (!parsed) return null;
-  return parsed.hours * 60 + parsed.minutes;
-}
+/**
+ * @desc Update doctor profile
+ * @route PATCH /api/doctors/:id
+ */
+export const updateDoctor = asyncHandler(async (req, res) => {
+  const doctor = await doctorService.update(req.params.id, req.body, req.user);
+  return sendResponse(res, 200, "Profile updated successfully", { doctor });
+});
 
-function normalizeSlot(slot) {
-  return {
-    day: String(slot?.day || "").trim(),
-    startTime: String(slot?.startTime || "").trim(),
-    endTime: String(slot?.endTime || "").trim(),
-    slotDuration: Number(slot?.slotDuration) || 30,
-    clinicName: String(slot?.clinicName || "").trim(),
-    location: String(slot?.location || "").trim(),
-    coordinates: slot?.coordinates,
-  };
-}
-
-function validateAvailabilitySlots(slots) {
-  if (!Array.isArray(slots) || slots.length === 0) {
-    return { ok: false, error: "availableSlots must be a non-empty array" };
-  }
-
-  const normalized = slots.map(normalizeSlot);
-  const seen = new Map();
-
-  for (const slot of normalized) {
-    if (!slot.day || !DAYS.includes(slot.day)) {
-      return {
-        ok: false,
-        error: "Each slot must have a valid day",
-        detail: slot,
-      };
-    }
-    const start = timeToMinutes(slot.startTime);
-    const end = timeToMinutes(slot.endTime);
-    if (start === null || end === null) {
-      return {
-        ok: false,
-        error:
-          "Each slot must have a valid startTime and endTime in HH:mm format",
-        detail: slot,
-      };
-    }
-    if (start >= end) {
-      return {
-        ok: false,
-        error: "startTime must be before endTime",
-        detail: slot,
-      };
-    }
-    if (slot.slotDuration <= 0 || slot.slotDuration > 480) {
-      return {
-        ok: false,
-        error: "slotDuration must be a positive number",
-        detail: slot,
-      };
-    }
-
-    const key = `${slot.day}:${start}-${end}`;
-    if (seen.has(key)) {
-      return {
-        ok: false,
-        error: "Duplicate availability slot found",
-        detail: slot,
-      };
-    }
-    seen.set(key, true);
-  }
-
-  const byDay = normalized.reduce((acc, slot) => {
-    acc[slot.day] = acc[slot.day] || [];
-    acc[slot.day].push(slot);
-    return acc;
-  }, {});
-
-  for (const day of Object.keys(byDay)) {
-    const sorted = byDay[day]
-      .slice()
-      .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
-    for (let i = 1; i < sorted.length; i += 1) {
-      const prevEnd = timeToMinutes(sorted[i - 1].endTime);
-      const currentStart = timeToMinutes(sorted[i].startTime);
-      if (currentStart < prevEnd) {
-        return {
-          ok: false,
-          error: `Availability slots on ${day} must not overlap`,
-          detail: { previous: sorted[i - 1], current: sorted[i] },
-        };
-      }
-    }
-  }
-
-  return { ok: true, slots: normalized };
-}
-
-export async function updateAvailability(req, res) {
-  const doctor = await Doctor.findById(req.params.id);
-  if (!doctor) return fail(res, 404, "Doctor not found", "doctor_not_found");
-
-  const requester = req.user;
-  const isOwner =
-    requester?.role === "doctor" &&
-    String(doctor.userId) === String(requester.userId);
-  const isAdmin = requester?.role === "admin";
-  if (!isOwner && !isAdmin) return fail(res, 403, "Forbidden", "not_owner");
-
-  const { availableSlots } = req.body || {};
-  console.log("Received slots:", JSON.stringify(req.body.availableSlots));
-  const result = validateAvailabilitySlots(availableSlots);
-  if (!result.ok) {
-    return fail(res, 400, result.error, result.detail || "invalid_slots");
-  }
-
-  doctor.availableSlots = result.slots;
-
-  // Geocode slots that have location but no coordinates
-  const slotsToGeocode = doctor.availableSlots.filter(
-    (s) => s.location && (!s.coordinates || !s.coordinates.coordinates),
-  );
-
-  if (slotsToGeocode.length > 0) {
-    await Promise.all(
-      slotsToGeocode.map(async (s) => {
-        const coords = await geocodeAddress(s.location);
-        if (coords) s.coordinates = coords;
-      }),
-    );
-  }
-
-  await doctor.save();
-
-  const updated = await Doctor.findById(doctor._id)
-    .populate("userId", "name email role")
-    .populate("clinicId", "name address city state pincode location phone");
-
-  console.log("Saved doctor slots:", JSON.stringify(updated.availableSlots));
-  return ok(res, { doctor: updated }, "Availability updated successfully");
-}
-
-export async function updateDoctor(req, res) {
-  const doctor = await Doctor.findById(req.params.id);
-  if (!doctor) return fail(res, 404, "Doctor not found", "doctor_not_found");
-
-  const requester = req.user;
-  const isOwner =
-    requester?.role === "doctor" &&
-    String(doctor.userId) === String(requester.userId);
-  const isAdmin = requester?.role === "admin";
-  if (!isOwner && !isAdmin) return fail(res, 403, "Forbidden", "not_owner");
-
-  const allowed = [
-    "specialty",
-    "qualifications",
-    "languages",
-    "consultationFee",
-    "experience",
-    "clinicId",
-    "availableSlots",
-  ];
-  for (const k of allowed) {
-    if (req.body?.[k] !== undefined) doctor[k] = req.body[k];
-  }
-  await doctor.save();
-
-  const updated = await Doctor.findById(doctor._id)
-    .populate("userId", "name email role")
-    .populate("clinicId", "name address city state pincode location phone");
-
-  return ok(res, { doctor: updated }, "Updated");
-}
-
-export async function getDoctorSlots(req, res) {
+/**
+ * @desc Get available slots for a specific date
+ * @route GET /api/doctors/:id/slots
+ */
+export const getDoctorSlots = asyncHandler(async (req, res) => {
   const dateStr = req.query.date;
-  if (!dateStr)
-    return fail(res, 400, "Missing date", "date is required (YYYY-MM-DD)");
-  const day = dayOfWeekShort(dateStr);
+  if (!dateStr) throw new AppError("Date is required (YYYY-MM-DD)", 400);
 
-  const doctor = await Doctor.findById(req.params.id);
-  if (!doctor) return fail(res, 404, "Doctor not found", "doctor_not_found");
+  const day = dayOfWeekShort(dateStr);
+  const doctor = await doctorService.findById(req.params.id);
 
   const daySlots = (doctor.availableSlots || []).filter((s) => s.day === day);
   const generated = [];
@@ -346,21 +75,28 @@ export async function getDoctorSlots(req, res) {
   for (const s of daySlots) {
     const start = minutesFromHHMM(s.startTime);
     const end = minutesFromHHMM(s.endTime);
-    const dur = Number(s.slotDuration || 0);
-    if (start === null || end === null || !dur) continue;
+    const dur = Number(s.slotDuration || 30);
+    if (start === null || end === null) continue;
     for (let t = start; t + dur <= end; t += dur) generated.push(formatAMPM(t));
   }
 
-  const { start, end } = dayRange(dateStr);
+  const start = new Date(`${dateStr}T00:00:00.000`);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
   const bookedAppointments = await Appointment.find({
     doctorId: doctor._id,
     date: { $gte: start, $lt: end },
     status: { $in: ["pending", "confirmed"] },
   }).select("slot");
 
-  const booked = Array.from(new Set(bookedAppointments.map((a) => a.slot)));
-  const bookedSet = new Set(booked);
+  const bookedSet = new Set(bookedAppointments.map((a) => a.slot));
   const available = generated.filter((s) => !bookedSet.has(s));
 
-  return ok(res, { date: dateStr, day, available, booked }, "OK");
-}
+  return sendResponse(res, 200, "Slots fetched successfully", { 
+    date: dateStr, 
+    day, 
+    available, 
+    booked: Array.from(bookedSet) 
+  });
+});

@@ -1,36 +1,25 @@
-import { Review } from '../models/Review.js'
-import { Doctor } from '../models/Doctor.js'
-import mongoose from 'mongoose'
-
-function ok(res, data = {}, message = '') {
-  return res.json({ success: true, data, message, error: '' })
-}
-
-function fail(res, status, message, error = '') {
-  return res.status(status).json({ success: false, data: {}, message, error })
-}
+import { Review } from '../models/Review.js';
+import { Doctor } from '../models/Doctor.js';
+import mongoose from 'mongoose';
+import asyncHandler from '../middleware/asyncHandler.js';
+import { sendResponse } from '../utils/response.js';
+import AppError from '../utils/AppError.js';
 
 /**
- * Create a new review for a doctor
- * POST /api/reviews
- * Only patients can review
+ * @desc Create a new review for a doctor
+ * @route POST /api/reviews
  */
-export async function createReview(req, res) {
-  const { doctorId, rating, comment } = req.body
-  const patientId = req.user.userId
-
-  if (!doctorId || !rating) {
-    return fail(res, 400, 'Missing doctorId or rating', 'bad_request')
-  }
+export const createReview = asyncHandler(async (req, res) => {
+  const { doctorId, rating, comment } = req.body;
+  const patientId = req.user.userId;
 
   if (rating < 1 || rating > 5) {
-    return fail(res, 400, 'Rating must be between 1 and 5', 'invalid_rating')
+    throw new AppError('Rating must be between 1 and 5', 400);
   }
 
-  // Prevent duplicate reviews
-  const existing = await Review.findOne({ patientId, doctorId })
+  const existing = await Review.findOne({ patientId, doctorId });
   if (existing) {
-    return fail(res, 409, 'You have already reviewed this doctor', 'conflict')
+    throw new AppError('You have already reviewed this doctor', 409, 'ALREADY_REVIEWED');
   }
 
   const review = await Review.create({
@@ -38,10 +27,10 @@ export async function createReview(req, res) {
     doctorId,
     rating,
     comment,
-  })
+  });
 
-  // Recalculate Doctor rating and reviewCount using aggregation pipeline
-  const stats = await Review.aggregate([
+  // Recalculate Doctor rating (Async, don't block response)
+  Review.aggregate([
     { $match: { doctorId: new mongoose.Types.ObjectId(doctorId) } },
     {
       $group: {
@@ -50,29 +39,28 @@ export async function createReview(req, res) {
         reviewCount: { $sum: 1 },
       },
     },
-  ])
+  ]).then(stats => {
+    if (stats.length > 0) {
+      Doctor.findByIdAndUpdate(doctorId, {
+        rating: Math.round(stats[0].avgRating * 10) / 10,
+        reviewCount: stats[0].reviewCount,
+      }).exec();
+    }
+  }).catch(err => console.error('Rating update failed', err));
 
-  if (stats.length > 0) {
-    await Doctor.findByIdAndUpdate(doctorId, {
-      rating: Math.round(stats[0].avgRating * 10) / 10, // Round to 1 decimal place
-      reviewCount: stats[0].reviewCount,
-    })
-  }
-
-  return ok(res, { review }, 'Review created successfully')
-}
+  return sendResponse(res, 201, "Review created successfully", { review });
+});
 
 /**
- * Get all reviews for a specific doctor
- * GET /api/reviews/doctor/:doctorId
- * Public access
+ * @desc Get all reviews for a specific doctor
+ * @route GET /api/reviews/doctor/:doctorId
  */
-export async function getDoctorReviews(req, res) {
-  const { doctorId } = req.params
+export const getDoctorReviews = asyncHandler(async (req, res) => {
+  const { doctorId } = req.params;
 
   const reviews = await Review.find({ doctorId })
     .populate('patientId', 'name')
-    .sort({ createdAt: -1 })
+    .sort({ createdAt: -1 });
 
-  return ok(res, { reviews }, 'OK')
-}
+  return sendResponse(res, 200, "Reviews fetched", { reviews });
+});

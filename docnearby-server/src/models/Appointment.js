@@ -16,4 +16,7 @@ const appointmentSchema = new mongoose.Schema(
   { versionKey: false },
 )
 
+appointmentSchema.index({ status: 1 });
+appointmentSchema.index({ date: 1 });
+
 export const Appointment = mongoose.model('Appointment', appointmentSchema)

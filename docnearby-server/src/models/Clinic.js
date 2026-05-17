@@ -25,6 +25,7 @@ const clinicSchema = new mongoose.Schema(
 )
 
 clinicSchema.index({ location: '2dsphere' })
+clinicSchema.index({ name: 1 })
 
 export const Clinic = mongoose.model('Clinic', clinicSchema)
 

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
+import { memo } from "react";
 
-export default function DoctorCard({ doctor }) {
+const DoctorCard = memo(({ doctor }) => {
   const name = doctor?.userId?.name || "Doctor";
   const specialty = doctor?.specialty || "";
   const fee = doctor?.consultationFee ?? null;
@@ -60,4 +61,6 @@ export default function DoctorCard({ doctor }) {
       </div>
     </div>
   );
-}
+});
+
+export default DoctorCard;

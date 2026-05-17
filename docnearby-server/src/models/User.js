@@ -16,6 +16,14 @@ const userSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
     otpHash: { type: String, select: false },
     otpExpiry: { type: Date },
+    passwordResetToken: {
+  type: String,
+  default: null,
+},
+    passwordResetExpires: {
+  type: Date,
+  default: null,
+},
   },
   {
     timestamps: true,
@@ -38,6 +46,9 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ passwordResetToken: 1 }, { sparse: true });
+userSchema.index({ name: 1 });
+userSchema.index({ role: 1 });
 
 userSchema.path("email").validate(function (value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);

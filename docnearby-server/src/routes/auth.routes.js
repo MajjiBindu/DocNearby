@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { Router } from "express";
 import {
   me,
   requestLoginOtp,
@@ -6,24 +6,55 @@ import {
   resendOtp,
   verifyLoginOtp,
   verifySignupOtp,
-} from '../controllers/auth.controller.js'
-import { requireAuth } from '../middleware/auth.middleware.js'
+  logout,
+  requestPasswordReset,
+  resetPassword,
+  validateResetToken,
+} from "../controllers/auth.controller.js";
+import { requireAuth } from "../middleware/auth.middleware.js";
+import validate from "../middleware/validate.middleware.js";
+import {
+  signupSchema,
+  loginSchema,
+  otpSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+} from "../validators/auth.validator.js";
+import { authLimiter } from "../middleware/rateLimiter.js";
 
-const router = Router()
+const router = Router();
 
-router.post('/signup/request-otp', (req, res, next) => Promise.resolve(requestSignupOtp(req, res)).catch(next))
-router.post('/signup/verify-otp', (req, res, next) => Promise.resolve(verifySignupOtp(req, res)).catch(next))
-router.post('/login/request-otp', (req, res, next) => Promise.resolve(requestLoginOtp(req, res)).catch(next))
-router.post('/login/verify-otp', (req, res, next) => Promise.resolve(verifyLoginOtp(req, res)).catch(next))
-router.post('/resend-otp', (req, res, next) => Promise.resolve(resendOtp(req, res)).catch(next))
-router.post('/signup/resend-otp', (req, res, next) => {
-  req.body = { ...req.body, purpose: 'signup' }
-  return Promise.resolve(resendOtp(req, res)).catch(next)
-})
-router.post('/login/resend-otp', (req, res, next) => {
-  req.body = { ...req.body, purpose: 'login' }
-  return Promise.resolve(resendOtp(req, res)).catch(next)
-})
-router.get('/me', requireAuth, (req, res, next) => Promise.resolve(me(req, res)).catch(next))
+// Apply rate limiting to all auth routes
+router.use(authLimiter);
 
-export default router
+router.post("/signup/request-otp", validate(signupSchema), requestSignupOtp);
+router.post("/signup/verify-otp", validate(otpSchema), verifySignupOtp);
+router.post("/login/request-otp", validate(loginSchema), requestLoginOtp);
+router.post("/login/verify-otp", validate(otpSchema), verifyLoginOtp);
+router.post(
+  "/forgot-password",
+  validate(forgotPasswordSchema),
+  requestPasswordReset,
+);
+router.post(
+  "/reset-password/:token",
+  validate(resetPasswordSchema),
+  resetPassword,
+);
+router.get("/reset-password/:token", validateResetToken);
+router.post("/resend-otp", resendOtp);
+
+router.post("/signup/resend-otp", (req, res, next) => {
+  req.body = { ...req.body, purpose: "signup" };
+  return resendOtp(req, res, next);
+});
+
+router.post("/login/resend-otp", (req, res, next) => {
+  req.body = { ...req.body, purpose: "login" };
+  return resendOtp(req, res, next);
+});
+
+router.post("/logout", logout);
+router.get("/me", requireAuth, me);
+
+export default router;

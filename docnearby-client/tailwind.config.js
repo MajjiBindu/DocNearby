@@ -1,38 +1,57 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./src/**/*.{js,jsx,ts,tsx}", "./index.html"],
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+
   theme: {
     extend: {
       colors: {
         primary: {
-          light: '#e0f2f1',
-          DEFAULT: '#00a2a1', // Apollo-style Teal
-          dark: '#00796b',
+          DEFAULT: "#0F6CBD",
+          dark: "#0B5AA3",
+          light: "#E8F1FB",
         },
+
         secondary: {
-          light: '#e8eaf6',
-          DEFAULT: '#102039', // Professional Navy
-          dark: '#050c1a',
+          DEFAULT: "#2563EB",
         },
-        accent: {
-          DEFAULT: '#ff6f61', // Coral for CTAs
-        },
+
         medical: {
-          blue: '#1070ff',
-          grey: '#f0f4f8',
-          text: '#2d3748',
-          'text-light': '#718096',
-        }
+          primary: "#0F6CBD",
+          secondary: "#2563EB",
+          accent: "#E8F1FB",
+          grey: "#F5F7FA",
+
+          text: {
+            DEFAULT: "#1F2937",
+            light: "#6B7280",
+          },
+
+          border: "#E5E7EB",
+          success: "#10B981",
+          danger: "#EF4444",
+          warning: "#F59E0B",
+          white: "#FFFFFF",
+        },
       },
-      fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-      },
+
       boxShadow: {
-        'medical': '0 4px 20px rgba(0, 0, 0, 0.05)',
-        'medical-hover': '0 10px 30px rgba(0, 162, 161, 0.1)',
+        medical: "0 2px 10px rgba(15, 108, 189, 0.08)",
+        "medical-hover": "0 10px 30px rgba(15, 108, 189, 0.15)",
+        card: "0 1px 6px rgba(0,0,0,0.06)",
+      },
+
+      borderRadius: {
+        medical: "16px",
+      },
+
+      fontFamily: {
+        sans: ["Inter", "sans-serif"],
       },
     },
   },
+
   plugins: [],
 }
-

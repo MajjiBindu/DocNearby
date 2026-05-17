@@ -1,18 +1,21 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
 html,
 body,
 #root {
-  height: 100%;
+  min-height: 100vh;
   @apply font-sans;
 }
 
 body {
-  @apply bg-medical-grey text-medical-text antialiased;
+  @apply bg-medical-grey text-medical-text antialiased overflow-x-hidden;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Custom Scrollbar */
@@ -30,29 +33,50 @@ body {
 
 /* Layout Utilities */
 .section-container {
-  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full;
 }
 
 /* Component Base Styles */
 .medical-card {
-  @apply bg-white rounded-2xl shadow-medical border border-slate-100 overflow-hidden transition-all duration-300 hover:shadow-medical-hover;
+  @apply bg-white rounded-2xl shadow-medical border border-slate-100 overflow-hidden transition-all duration-300;
+  will-change: transform, opacity, shadow;
+}
+
+.medical-card:hover {
+  @apply shadow-medical-hover;
 }
 
 .btn-primary {
-  @apply bg-primary text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-primary-dark transition-all active:scale-[0.98] shadow-sm;
+  @apply bg-primary text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-primary-dark transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2;
 }
 
 .btn-secondary {
-  @apply bg-white text-secondary border border-slate-200 px-6 py-2.5 rounded-xl font-semibold hover:bg-slate-50 transition-all active:scale-[0.98];
+  @apply bg-white text-secondary border border-slate-200 px-6 py-2.5 rounded-xl font-semibold hover:bg-slate-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2;
 }
 
 /* Form Styles */
 .medical-input {
-  @apply w-full bg-white border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-medical-text placeholder:text-medical-text-light;
+  @apply w-full bg-white border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-medical-text placeholder:text-medical-text-light text-base;
 }
 
 .medical-label {
   @apply text-medical-text font-semibold text-sm mb-1.5 block;
+}
+
+/* Responsive Utilities */
+.responsive-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6;
+}
+
+.dashboard-container {
+  @apply section-container py-6 md:py-10;
+}
+
+/* Fix for mobile zoom on inputs */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
 
 /* Navbar Language Switcher Polish */
@@ -81,6 +105,6 @@ body {
 }
 
 .nav-lang-switcher p {
-  @apply !text-medical-text-light/60;
+  @apply !text-medical-text-light opacity-60;
 }
 

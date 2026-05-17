@@ -1,4 +1,6 @@
 import dotenv from "dotenv";
+import logger from './src/utils/logger.js';
+
 dotenv.config();
 
 const PORT = process.env.PORT || 5000;
@@ -8,10 +10,8 @@ function validateStartupEnv() {
   const missing = required.filter((name) => !process.env[name]);
 
   if (missing.length) {
-    throw new Error(
-      `[ERROR] Missing required environment variables: ${missing.join(", ")}. ` +
-        "Set them in docnearby-server/.env before starting the server.",
-    );
+    logger.error(`Missing required environment variables: ${missing.join(", ")}`);
+    throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
   }
 }
 
@@ -22,36 +22,50 @@ async function start() {
     import("./src/app.js"),
     import("./src/config/db.js"),
     import("./src/models/User.js"),
-    import("./src/jobs/reminderJob.js"),
   ]);
 
   await connectDb();
   await syncUserIndexes(User);
+  
   const { startReminderJob } = await import("./src/jobs/reminderJob.js");
   startReminderJob();
-  app.listen(PORT, () => {
-    // eslint-disable-next-line no-console
-    console.log(`DocNearby server listening on http://localhost:${PORT}`);
+
+  const server = app.listen(PORT, () => {
+    logger.info(`DocNearby server listening on http://localhost:${PORT}`);
+  });
+
+  // Handle unhandled promise rejections
+  process.on('unhandledRejection', (err) => {
+    logger.error('UNHANDLED REJECTION! Shutting down...', err);
+    server.close(() => {
+      process.exit(1);
+    });
+  });
+
+  // Handle uncaught exceptions
+  process.on('uncaughtException', (err) => {
+    logger.error('UNCAUGHT EXCEPTION! Shutting down...', err);
+    server.close(() => {
+      process.exit(1);
+    });
   });
 }
 
 async function syncUserIndexes(User) {
-  console.log("[AUTH] Checking users collection indexes");
+  logger.info("Checking users collection indexes");
   const indexes = await User.collection.indexes();
   const hasLegacyPhoneIndex = indexes.some((index) => index.name === "phone_1");
 
   if (hasLegacyPhoneIndex) {
-    console.log("[AUTH] Dropping legacy users.phone_1 index");
+    logger.info("Dropping legacy users.phone_1 index");
     await User.collection.dropIndex("phone_1");
-    console.log("[AUTH] Dropped legacy users.phone_1 index");
   }
 
   await User.syncIndexes();
-  console.log("[AUTH] User indexes synchronized");
+  logger.info("User indexes synchronized");
 }
 
 start().catch((err) => {
-  // eslint-disable-next-line no-console
-  console.error("[ERROR] Failed to start server:", err.message);
+  logger.error("Failed to start server:", err);
   process.exit(1);
 });

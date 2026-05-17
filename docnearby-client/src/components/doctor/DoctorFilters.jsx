@@ -1,18 +1,18 @@
-import Input from '../common/Input.jsx'
 import { LANGUAGES, SPECIALTIES } from '../../utils/constants.js'
 
 export default function DoctorFilters({ filters, setFilters }) {
   const update = (patch) => setFilters((f) => ({ ...(f || {}), ...patch }))
+  
   return (
-    <div className="space-y-4">
-      <div>
-        <label className="mb-1 block text-sm font-medium text-slate-800">Specialty</label>
+    <div className="space-y-6">
+      <div className="space-y-1.5">
+        <label className="medical-label">Medical Specialty</label>
         <select
-          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+          className="medical-input !py-2.5 !text-sm appearance-none cursor-pointer"
           value={filters?.specialty || ''}
           onChange={(e) => update({ specialty: e.target.value })}
         >
-          <option value="">Any</option>
+          <option value="">All Specialties</option>
           {SPECIALTIES.map((s) => (
             <option key={s} value={s}>
               {s}
@@ -21,14 +21,14 @@ export default function DoctorFilters({ filters, setFilters }) {
         </select>
       </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium text-slate-800">Language</label>
+      <div className="space-y-1.5">
+        <label className="medical-label">Preferred Language</label>
         <select
-          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+          className="medical-input !py-2.5 !text-sm appearance-none cursor-pointer"
           value={filters?.language || ''}
           onChange={(e) => update({ language: e.target.value })}
         >
-          <option value="">Any</option>
+          <option value="">Any Language</option>
           {LANGUAGES.map((l) => (
             <option key={l} value={l}>
               {l}
@@ -37,13 +37,17 @@ export default function DoctorFilters({ filters, setFilters }) {
         </select>
       </div>
 
-      <Input
-        label="Max fee (₹)"
-        inputMode="numeric"
-        value={filters?.maxFee || ''}
-        onChange={(e) => update({ maxFee: e.target.value })}
-        placeholder="e.g. 500"
-      />
+      <div className="space-y-1.5">
+        <label className="medical-label">Maximum Consultation Fee (₹)</label>
+        <input
+          type="number"
+          inputMode="numeric"
+          className="medical-input !py-2.5 !text-sm"
+          value={filters?.maxFee || ''}
+          onChange={(e) => update({ maxFee: e.target.value })}
+          placeholder="e.g. 1000"
+        />
+      </div>
     </div>
   )
 }

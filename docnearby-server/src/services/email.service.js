@@ -116,6 +116,25 @@ export function sendLoginOtpEmail(email, otp) {
   });
 }
 
+export function sendPasswordResetEmail(email, { resetUrl, expiresInMinutes }) {
+  return sendEmail({
+    to: email,
+    subject: "Reset your DocNearby password",
+    html: `
+      <div style="font-family: Arial, sans-serif; background:#f8fafc; padding:24px;">
+        <div style="max-width:560px; margin:0 auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:30px;">
+          <h1 style="margin:0 0 16px; color:#0f172a; font-size:28px;">Reset Your Password</h1>
+          <p style="margin:0 0 20px; color:#475569; line-height:1.7; font-size:15px;">We received a request to reset your DocNearby password. Click below to choose a new password.</p>
+          <a href="${resetUrl}" style="display:inline-block; background:#374151; color:#ffffff; text-decoration:none; padding:16px 24px; border-radius:10px; font-weight:700;">Reset Password</a>
+          <p style="margin:24px 0 0; color:#64748b; font-size:13px; line-height:1.7;">This link expires in ${expiresInMinutes} minutes. If you didn't request a password reset, please ignore this message or contact support.</p>
+          <hr style="margin:28px 0; border:none; border-top:1px solid #e2e8f0;" />
+          <p style="margin:0; color:#475569; font-size:12px;">DocNearby Healthcare | Secure patient and clinician access.</p>
+        </div>
+      </div>
+    `,
+  });
+}
+
 export function sendAppointmentConfirmation(
   to,
   { doctorName, date, slot, clinicInfo },

@@ -1,295 +1,248 @@
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import { env, ROLES } from "../config/constants.js";
-import { User } from "../models/User.js";
-import { Doctor } from "../models/Doctor.js";
-import {
-  consumeOtpSession,
-  createOtpSession,
-  getOtpSession,
-  normalizeEmail,
-  verifyOtpSession,
-} from "../services/otp.service.js";
-import {
-  sendLoginOtpEmail,
-  sendSignupOtpEmail,
-} from "../services/email.service.js";
+import * as authService from "../services/auth.service.js";
+import * as userService from "../services/user.service.js";
+import * as otpService from "../services/otp.service.js";
+import * as emailService from "../services/email.service.js";
+import asyncHandler from "../middleware/asyncHandler.js";
+import { sendResponse } from "../utils/response.js";
+import AppError from "../utils/AppError.js";
+import logger from "../utils/logger.js";
+import { env } from "../config/constants.js";
 
 const SIGNUP_PURPOSE = "signup";
 const LOGIN_PURPOSE = "login";
 
-function ok(res, data = {}, message = "") {
-  return res.json({ success: true, data, message, error: "" });
-}
+/**
+ * @desc Request Signup OTP
+ * @route POST /api/auth/signup-otp
+ */
+export const requestSignupOtp = asyncHandler(async (req, res) => {
+  const { name, email, password, role } = req.body;
 
-function fail(res, status, message, error = "") {
-  return res.status(status).json({ success: false, data: {}, message, error });
-}
-
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function isValidPassword(password) {
-  return String(password || "").length >= 8;
-}
-
-function isValidOtp(otp) {
-  return /^\d{6}$/.test(String(otp || ""));
-}
-
-function signToken(user) {
-  return jwt.sign(
-    {
-      userId: user._id.toString(),
-      role: user.role,
-      email: user.email,
-    },
-    env("JWT_SECRET", ""),
-    { expiresIn: env("JWT_EXPIRY", "7d") },
-  );
-}
-
-async function ensureDoctorProfile(user) {
-  if (user.role !== "doctor") return;
-
-  const existingDoctor = await Doctor.findOne({ userId: user._id });
-  if (!existingDoctor) {
-    await Doctor.create({ userId: user._id });
-  }
-}
-
-function otpFailureMessage(reason) {
-  if (reason === "expired") return "OTP expired";
-  if (reason === "max_attempts") return "Maximum OTP attempts reached";
-  if (reason === "no_otp") return "No OTP request found for this email";
-  return "Invalid OTP";
-}
-
-export async function requestSignupOtp(req, res) {
-  try {
-    console.log("[AUTH] Signup OTP request body:", {
-      ...req.body,
-      password: req.body?.password ? "[REDACTED]" : undefined,
-    });
-
-    const name = String(req.body?.name || "").trim();
-    const email = normalizeEmail(req.body?.email);
-    const password = String(req.body?.password || "");
-    const role = req.body?.role || "patient";
-
-    console.log("[AUTH] Signup email value:", email);
-    console.log("[AUTH] Signup role value:", role);
-
-    if (!name) return fail(res, 400, "Name is required", "name_required");
-    if (!isValidEmail(email)) {
-      return fail(res, 400, "Invalid email", "email_invalid");
-    }
-    if (!isValidPassword(password)) {
-      return fail(
-        res,
-        400,
-        "Password must be at least 8 characters",
-        "password_too_short",
-      );
-    }
-    if (!ROLES.includes(role) || role === "admin") {
-      return fail(res, 400, "Invalid role", "role_invalid");
-    }
-
-    const existing = await User.findOne({ email }).select("_id");
-    console.log("[AUTH] Existing user found:", Boolean(existing));
-    if (existing) {
-      return fail(res, 409, "Email is already registered", "email_exists");
-    }
-
-    const passwordHash = await bcrypt.hash(password, 12);
-    console.log("[AUTH] Signup password hashing success");
-
-    const session = await createOtpSession(SIGNUP_PURPOSE, email, {
-      name,
-      email,
-      passwordHash,
-      role,
-    });
-    console.log("[AUTH] OTP generation success");
-    console.log("[AUTH] OTP hashing success");
-    console.log("[AUTH] Temporary signup/session save success", {
-      email,
-      expiresAt: session.expiresAt,
-    });
-
-    await sendSignupOtpEmail(email, session.otp);
-    console.log("[AUTH] Signup OTP email sending success", { email });
-
-    return ok(
-      res,
-      { email, expiresAt: session.expiresAt },
-      "Signup OTP sent to email",
-    );
-  } catch (error) {
-    console.error("[ERROR] [AUTH] Signup OTP request failed:", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-      code: error.code,
-    });
-    return fail(
-      res,
-      500,
-      error.message || "Unable to send signup OTP",
-      "signup_otp_failed",
-    );
-  }
-}
-
-export async function verifySignupOtp(req, res) {
-  try {
-    const email = normalizeEmail(req.body?.email);
-    const otp = String(req.body?.otp || "").trim();
-
-    console.log("[AUTH] Verify signup OTP request", {
-      email,
-      otpProvided: Boolean(otp),
-    });
-
-    if (!isValidEmail(email)) {
-      return fail(res, 400, "Invalid email", "email_invalid");
-    }
-    if (!isValidOtp(otp)) {
-      return fail(res, 400, "Invalid OTP", "otp_invalid");
-    }
-
-    const existing = await User.findOne({ email }).select("_id");
-    if (existing) {
-      return fail(res, 409, "Email is already registered", "email_exists");
-    }
-
-    const verdict = await verifyOtpSession(SIGNUP_PURPOSE, email, otp);
-    if (!verdict.ok) {
-      return fail(res, 401, otpFailureMessage(verdict.reason), verdict.reason);
-    }
-
-    const payload = verdict.data;
-    const user = await User.create({
-      name: payload.name,
-      email: payload.email,
-      password: payload.passwordHash,
-      role: payload.role,
-      isVerified: true,
-    });
-    await ensureDoctorProfile(user);
-    consumeOtpSession(SIGNUP_PURPOSE, email);
-
-    const token = signToken(user);
-    return ok(res, { token, user }, "Signup verified");
-  } catch (error) {
-    console.error("[ERROR] [AUTH] Verify signup OTP failed:", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-      code: error.code,
-    });
-    const isDuplicateKey = error?.code === 11000;
-    return fail(
-      res,
-      isDuplicateKey ? 409 : 500,
-      isDuplicateKey
-        ? "Unable to create user because a duplicate database index exists. Please retry after indexes are synchronized."
-        : error.message || "Unable to verify signup OTP",
-      isDuplicateKey ? "duplicate_user_index" : "signup_otp_verify_failed",
-    );
-  }
-}
-
-export async function requestLoginOtp(req, res) {
-  const email = normalizeEmail(req.body?.email);
-  const password = String(req.body?.password || "");
-
-  if (!isValidEmail(email)) {
-    return fail(res, 400, "Invalid email", "email_invalid");
-  }
-  if (!password) {
-    return fail(res, 400, "Password is required", "password_required");
+  const existing = await userService.findByEmail(email);
+  if (existing) {
+    throw new AppError("Email is already registered", 409, "email_exists");
   }
 
-  const user = await User.findOne({ email }).select("+password");
-  if (!user) {
-    return fail(res, 401, "Invalid email or password", "invalid_credentials");
+  const passwordHash = await authService.hashPassword(password);
+  const session = await authService.requestOtp(SIGNUP_PURPOSE, email, {
+    name,
+    email,
+    passwordHash,
+    role,
+  });
+
+  logger.info(`Signup OTP requested: ${email}`);
+  return sendResponse(res, 200, "Signup OTP sent to email", {
+    email,
+    expiresAt: session.expiresAt,
+  });
+});
+
+/**
+ * @desc Verify Signup OTP
+ * @route POST /api/auth/verify-signup
+ */
+export const verifySignupOtp = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+
+  const existing = await userService.findByEmail(email);
+  if (existing) {
+    throw new AppError("Email is already registered", 409, "email_exists");
   }
 
-  const matches = await bcrypt.compare(password, user.password);
-  if (!matches) {
-    return fail(res, 401, "Invalid email or password", "invalid_credentials");
+  const payload = await authService.verifyOtp(SIGNUP_PURPOSE, email, otp);
+
+  const user = await userService.createUser({
+    name: payload.name,
+    email: payload.email,
+    password: payload.passwordHash,
+    role: payload.role,
+    isVerified: true,
+  });
+
+  authService.consumeOtp(SIGNUP_PURPOSE, email);
+  const token = authService.signToken(user);
+
+  res.cookie("dn_token", token, authService.cookieOptions);
+
+  logger.info(`User registered and verified: ${email}`);
+  return sendResponse(res, 201, "Signup verified", { user });
+});
+
+/**
+ * @desc Request Login OTP
+ * @route POST /api/auth/login-otp
+ */
+export const requestLoginOtp = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  const user = await userService.findByEmail(email, true);
+  if (!user || !(await authService.comparePassword(password, user.password))) {
+    throw new AppError("Invalid email or password", 401, "invalid_credentials");
   }
 
-  const session = await createOtpSession(LOGIN_PURPOSE, email, {
+  const session = await authService.requestOtp(LOGIN_PURPOSE, email, {
     userId: user._id.toString(),
   });
-  await sendLoginOtpEmail(email, session.otp);
 
-  return ok(
-    res,
-    { email, expiresAt: session.expiresAt },
-    "Login OTP sent to email",
+  logger.info(`Login OTP requested: ${email}`);
+  return sendResponse(res, 200, "Login OTP sent to email", {
+    email,
+    expiresAt: session.expiresAt,
+  });
+});
+
+/**
+ * @desc Verify Login OTP
+ * @route POST /api/auth/verify-login
+ */
+export const verifyLoginOtp = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+
+  const payload = await authService.verifyOtp(LOGIN_PURPOSE, email, otp);
+
+  const user = await userService.findById(payload.userId);
+  if (!user) throw new AppError("User not found", 404, "user_not_found");
+
+  const token = authService.signToken(user);
+  authService.consumeOtp(LOGIN_PURPOSE, email);
+
+  res.cookie("dn_token", token, authService.cookieOptions);
+
+  logger.info(`User logged in: ${email}`);
+  return sendResponse(res, 200, "Login verified", { user });
+});
+
+/**
+ * @desc Logout user
+ * @route POST /api/auth/logout
+ */
+export const logout = asyncHandler(async (req, res) => {
+  res.clearCookie("dn_token", {
+    ...authService.cookieOptions,
+    maxAge: 0,
+  });
+  return sendResponse(res, 200, "Logged out successfully");
+});
+/**
+ * @desc Validate Password Reset Token (for page load check)
+ * @route GET /api/auth/reset-password/:token
+ */
+export const validateResetToken = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+
+  const user = await authService.getUserByPasswordResetToken(token);
+  if (!user) {
+    throw new AppError(
+      "Invalid or expired password reset token",
+      400,
+      "invalid_or_expired_token",
+    );
+  }
+
+  return sendResponse(res, 200, "Token is valid");
+});
+/**
+ * @desc Request Password Reset Email
+ * @route POST /api/auth/forgot-password
+ */
+export const requestPasswordReset = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  const normalizedEmail = String(email).trim().toLowerCase();
+
+  const resetToken =
+    await authService.createPasswordResetToken(normalizedEmail);
+  const frontendUrl = env("CLIENT_URL", "http://localhost:5173").replace(
+    /\/$/,
+    "",
   );
-}
+  const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
 
-export async function verifyLoginOtp(req, res) {
-  const email = normalizeEmail(req.body?.email);
-  const otp = String(req.body?.otp || "").trim();
-
-  if (!isValidEmail(email)) {
-    return fail(res, 400, "Invalid email", "email_invalid");
-  }
-  if (!isValidOtp(otp)) {
-    return fail(res, 400, "Invalid OTP", "otp_invalid");
+  if (resetToken) {
+    await emailService.sendPasswordResetEmail(normalizedEmail, {
+      resetUrl,
+      expiresInMinutes: 60,
+    });
+    logger.info(`Password reset requested for ${normalizedEmail}`);
   }
 
-  const verdict = await verifyOtpSession(LOGIN_PURPOSE, email, otp);
-  if (!verdict.ok) {
-    return fail(res, 401, otpFailureMessage(verdict.reason), verdict.reason);
+  return sendResponse(
+    res,
+    200,
+    "If an account exists with this email, a reset link has been sent.",
+  );
+});
+
+/**
+ * @desc Reset Password
+ * @route POST /api/auth/reset-password/:token
+ */
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+
+  const user = await authService.getUserByPasswordResetToken(token);
+  if (!user) {
+    throw new AppError(
+      "Invalid or expired password reset token",
+      400,
+      "invalid_or_expired_token",
+    );
   }
 
-  const user = await User.findById(verdict.data.userId);
-  if (!user) return fail(res, 404, "User not found", "user_not_found");
+  await authService.resetPassword(user, password);
+  res.clearCookie("dn_token", {
+    ...authService.cookieOptions,
+    maxAge: 0,
+  });
 
-  const token = signToken(user);
-  consumeOtpSession(LOGIN_PURPOSE, email);
-  return ok(res, { token, user }, "Login verified");
-}
+  logger.info(`Password reset successfully for ${user.email}`);
+  return sendResponse(
+    res,
+    200,
+    "Password reset successful. Please sign in with your new password.",
+  );
+});
 
-export async function resendOtp(req, res) {
-  const email = normalizeEmail(req.body?.email);
-  const purpose = String(req.body?.purpose || "").trim();
+/**
+ * @desc Resend OTP
+ * @route POST /api/auth/resend-otp
+ */
+export const resendOtp = asyncHandler(async (req, res) => {
+  const { email, purpose } = req.body;
 
-  if (!isValidEmail(email)) {
-    return fail(res, 400, "Invalid email", "email_invalid");
-  }
   if (![SIGNUP_PURPOSE, LOGIN_PURPOSE].includes(purpose)) {
-    return fail(res, 400, "Invalid OTP purpose", "purpose_invalid");
+    throw new AppError("Invalid OTP purpose", 400, "purpose_invalid");
   }
 
-  const existingSession = getOtpSession(purpose, email);
+  const existingSession = otpService.getOtpSession(purpose, email);
   if (!existingSession) {
-    return fail(res, 404, "No active OTP request found", "no_otp");
+    throw new AppError("No active OTP request found", 404, "no_otp");
   }
 
-  const session = await createOtpSession(purpose, email, existingSession.data);
-  if (purpose === SIGNUP_PURPOSE) {
-    await sendSignupOtpEmail(email, session.otp);
-  } else {
-    await sendLoginOtpEmail(email, session.otp);
-  }
+  const session = await authService.requestOtp(
+    purpose,
+    email,
+    existingSession.data,
+  );
 
-  return ok(res, { email, expiresAt: session.expiresAt }, "OTP resent");
-}
+  logger.info(`OTP resent: ${email} (${purpose})`);
+  return sendResponse(res, 200, "OTP resent", {
+    email,
+    expiresAt: session.expiresAt,
+  });
+});
 
-export async function me(req, res) {
+/**
+ * @desc Get current user
+ * @route GET /api/auth/me
+ */
+export const me = asyncHandler(async (req, res) => {
   const userId = req.user?.userId;
-  if (!userId) return fail(res, 401, "Unauthorized", "missing_user");
+  if (!userId) throw new AppError("Unauthorized", 401, "missing_user");
 
-  const user = await User.findById(userId);
-  if (!user) return fail(res, 404, "User not found", "user_not_found");
-  return ok(res, { user }, "User fetched");
-}
+  const user = await userService.findById(userId);
+  if (!user) throw new AppError("User not found", 404, "user_not_found");
+
+  return sendResponse(res, 200, "User fetched", { user });
+});

@@ -1,58 +1,49 @@
-import { Clinic } from '../models/Clinic.js'
+import { Clinic } from '../models/Clinic.js';
+import asyncHandler from '../middleware/asyncHandler.js';
+import { sendResponse } from '../utils/response.js';
+import AppError from '../utils/AppError.js';
 
-function ok(res, data = {}, message = '') {
-  return res.json({ success: true, data, message, error: '' })
-}
-function fail(res, status, message, error = '') {
-  return res.status(status).json({ success: false, data: {}, message, error })
-}
+/**
+ * @desc List clinics with location search
+ * @route GET /api/clinics
+ */
+export const listClinics = asyncHandler(async (req, res) => {
+  const lat = req.query.lat ? Number(req.query.lat) : null;
+  const lng = req.query.lng ? Number(req.query.lng) : null;
+  const radius = req.query.radius ? Number(req.query.radius) : 5000;
 
-function parseNumber(v) {
-  const n = Number(v)
-  return Number.isFinite(n) ? n : null
-}
-
-export async function listClinics(req, res) {
-  const lat = parseNumber(req.query.lat)
-  const lng = parseNumber(req.query.lng)
-  const radius = parseNumber(req.query.radius) ?? 5000
-
-  const query = {}
+  const query = {};
   if (lat !== null && lng !== null) {
     query.location = {
       $near: {
         $geometry: { type: 'Point', coordinates: [lng, lat] },
         $maxDistance: radius,
       },
-    }
+    };
   }
 
-  const clinics = await Clinic.find(query).limit(100)
-  return ok(res, { clinics }, 'OK')
-}
+  const clinics = await Clinic.find(query).limit(100);
+  return sendResponse(res, 200, "Clinics fetched", { clinics });
+});
 
-export async function getClinic(req, res) {
+/**
+ * @desc Get clinic by ID
+ * @route GET /api/clinics/:id
+ */
+export const getClinic = asyncHandler(async (req, res) => {
   const clinic = await Clinic.findById(req.params.id).populate({
     path: 'doctors',
     populate: [{ path: 'userId', select: 'name email role' }],
-  })
-  if (!clinic) return fail(res, 404, 'Clinic not found', 'clinic_not_found')
-  return ok(res, { clinic }, 'OK')
-}
+  });
+  if (!clinic) throw new AppError('Clinic not found', 404);
+  return sendResponse(res, 200, "Clinic fetched", { clinic });
+});
 
-export async function createClinic(req, res) {
-  const payload = req.body || {}
-  if (!payload.name) return fail(res, 400, 'Name is required', 'name required')
-
-  const clinic = await Clinic.create({
-    name: payload.name,
-    address: payload.address || '',
-    city: payload.city || '',
-    state: payload.state || '',
-    pincode: payload.pincode || '',
-    phone: payload.phone || '',
-    location: payload.location || undefined,
-  })
-
-  return ok(res, { clinic }, 'Created')
-}
+/**
+ * @desc Create clinic
+ * @route POST /api/clinics
+ */
+export const createClinic = asyncHandler(async (req, res) => {
+  const clinic = await Clinic.create(req.body);
+  return sendResponse(res, 201, "Clinic created", { clinic });
+});

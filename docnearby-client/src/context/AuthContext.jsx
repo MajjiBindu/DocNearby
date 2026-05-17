@@ -15,37 +15,66 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('dn_token') || '')
   const [user, setUser] = useState(() => safeJsonParse(localStorage.getItem('dn_user')) || null)
   const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (token) localStorage.setItem('dn_token', token)
-    else localStorage.removeItem('dn_token')
-  }, [token])
-
-  useEffect(() => {
-    if (user) localStorage.setItem('dn_user', JSON.stringify(user))
-    else localStorage.removeItem('dn_user')
-  }, [user])
+  const [isInitialized, setIsInitialized] = useState(false)
 
   const logout = useCallback(() => {
     setToken('')
     setUser(null)
+    localStorage.removeItem('dn_token')
+    localStorage.removeItem('dn_user')
   }, [])
 
   const refreshMe = useCallback(async () => {
-    if (!token) return null
+    if (!token) {
+      setIsInitialized(true)
+      return null
+    }
     setLoading(true)
     try {
       const res = await authApi.me()
-      if (res?.success) setUser(res.data?.user || null)
+      if (res?.success) {
+        setUser(res.data?.user || null)
+      } else {
+        logout()
+      }
       return res
+    } catch (e) {
+      if (e.response?.status === 401) logout()
+      return null
     } finally {
       setLoading(false)
+      setIsInitialized(true)
     }
-  }, [token])
+  }, [token, logout])
+
+  // Persistence
+  useEffect(() => {
+    if (token) localStorage.setItem('dn_token', token)
+    if (user) localStorage.setItem('dn_user', JSON.stringify(user))
+  }, [token, user])
+
+  // Initialization
+  useEffect(() => {
+    if (!isInitialized) {
+      refreshMe()
+    }
+  }, [refreshMe, isInitialized])
+
+  const isAuthenticated = !!token && !!user
 
   const value = useMemo(
-    () => ({ token, setToken, user, setUser, loading, logout, refreshMe }),
-    [token, user, loading, logout, refreshMe],
+    () => ({ 
+      token, 
+      setToken, 
+      user, 
+      setUser, 
+      loading, 
+      isInitialized, 
+      isAuthenticated,
+      logout, 
+      refreshMe 
+    }),
+    [token, user, loading, isInitialized, isAuthenticated, logout, refreshMe],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

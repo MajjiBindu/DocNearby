@@ -1,27 +1,22 @@
-import { Router } from 'express'
+import { Router } from 'express';
 import {
   createAppointment,
   doctorAppointments,
   myAppointments,
   updateAppointmentStatus,
-} from '../controllers/appointment.controller.js'
-import { requireAuth } from '../middleware/auth.middleware.js'
-import { requireRole } from '../middleware/role.middleware.js'
+} from '../controllers/appointment.controller.js';
+import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireRole } from '../middleware/role.middleware.js';
+import validate from '../middleware/validate.middleware.js';
+import { createAppointmentSchema, updateStatusSchema } from '../validators/appointment.validator.js';
 
-const router = Router()
+const router = Router();
 
-router.post('/', requireAuth, requireRole('patient'), (req, res, next) =>
-  Promise.resolve(createAppointment(req, res)).catch(next),
-)
-router.get('/mine', requireAuth, requireRole('patient'), (req, res, next) =>
-  Promise.resolve(myAppointments(req, res)).catch(next),
-)
-router.get('/doctor', requireAuth, requireRole('doctor'), (req, res, next) =>
-  Promise.resolve(doctorAppointments(req, res)).catch(next),
-)
-router.patch('/:id/status', requireAuth, requireRole(['patient', 'doctor', 'admin']), (req, res, next) =>
-  Promise.resolve(updateAppointmentStatus(req, res)).catch(next),
-)
+router.use(requireAuth);
 
-export default router
+router.post('/', requireRole('patient'), validate(createAppointmentSchema), createAppointment);
+router.get('/mine', requireRole('patient'), myAppointments);
+router.get('/doctor', requireRole('doctor'), doctorAppointments);
+router.patch('/:id/status', requireRole(['patient', 'doctor', 'admin']), validate(updateStatusSchema), updateAppointmentStatus);
 
+export default router;

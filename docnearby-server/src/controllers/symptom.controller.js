@@ -1,3 +1,6 @@
+import asyncHandler from '../middleware/asyncHandler.js';
+import { sendResponse } from '../utils/response.js';
+
 const symptomMap = {
   fever: ['General Physician'],
   cold: ['General Physician', 'ENT Specialist'],
@@ -14,36 +17,25 @@ const symptomMap = {
   joint: ['Orthopedic'],
   teeth: ['Dentist'],
   tooth: ['Dentist'],
-}
+};
 
 /**
- * Suggest specialties based on symptoms
- * POST /api/symptoms/suggest
+ * @desc Suggest specialties based on symptoms
+ * @route POST /api/symptoms/suggest
  */
-export async function suggestSpecialties(req, res) {
-  const symptomsStr = String(req.body?.symptoms || '').toLowerCase()
-  
-  // Split by common delimiters: spaces, commas, periods
-  const words = symptomsStr.split(/[ ,./]+/).filter(Boolean)
-
-  const specialtiesSet = new Set()
+export const suggestSpecialties = asyncHandler(async (req, res) => {
+  const symptomsStr = String(req.body?.symptoms || '').toLowerCase();
+  const words = symptomsStr.split(/[ ,./]+/).filter(Boolean);
+  const specialtiesSet = new Set();
 
   for (const word of words) {
     if (symptomMap[word]) {
-      symptomMap[word].forEach((s) => specialtiesSet.add(s))
+      symptomMap[word].forEach((s) => specialtiesSet.add(s));
     }
   }
 
-  // Deduplicate and default if no matches
-  let result = Array.from(specialtiesSet)
-  if (result.length === 0) {
-    result = ['General Physician']
-  }
+  let result = Array.from(specialtiesSet);
+  if (result.length === 0) result = ['General Physician'];
 
-  return res.json({
-    success: true,
-    data: {
-      specialties: result
-    }
-  })
-}
+  return sendResponse(res, 200, "Specialties suggested", { specialties: result });
+});

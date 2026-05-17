@@ -1,10 +1,9 @@
-import { Router } from 'express'
-import { getLab, listLabs } from '../controllers/lab.controller.js'
+import { Router } from 'express';
+import { getLab, listLabs } from '../controllers/lab.controller.js';
 
-const router = Router()
+const router = Router();
 
-router.get('/', (req, res, next) => Promise.resolve(listLabs(req, res)).catch(next))
-router.get('/:id', (req, res, next) => Promise.resolve(getLab(req, res)).catch(next))
+router.get('/', listLabs);
+router.get('/:id', getLab);
 
-export default router
-
+export default router;

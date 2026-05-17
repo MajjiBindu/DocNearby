@@ -36,6 +36,10 @@ const doctorSchema = new mongoose.Schema(
   { versionKey: false },
 )
 
+doctorSchema.index({ specialty: 1 })
+doctorSchema.index({ rating: -1 })
+doctorSchema.index({ consultationFee: 1 })
+doctorSchema.index({ isVerified: 1 })
 doctorSchema.index({ "availableSlots.coordinates": "2dsphere" })
 
 export const Doctor = mongoose.model('Doctor', doctorSchema)

@@ -6,30 +6,43 @@ const baseURL =
 export const api = axios.create({
   baseURL,
   timeout: 20000,
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("dn_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
+  withCredentials: true,
 });
 
 async function unwrap(promise) {
-  const { data } = await promise;
-  return data;
+  try {
+    const { data } = await promise;
+    return data;
+  } catch (error) {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("dn_token");
+      localStorage.removeItem("dn_user");
+      if (!window.location.pathname.includes("/login")) {
+        window.location.href = "/login";
+      }
+    }
+    throw error;
+  }
 }
 
 export const authApi = {
   requestSignupOtp: ({ name, email, password, role }) =>
-    unwrap(api.post("/auth/signup/request-otp", { name, email, password, role })),
+    unwrap(
+      api.post("/auth/signup/request-otp", { name, email, password, role }),
+    ),
   verifySignupOtp: ({ email, otp }) =>
     unwrap(api.post("/auth/signup/verify-otp", { email, otp })),
   requestLoginOtp: ({ email, password }) =>
     unwrap(api.post("/auth/login/request-otp", { email, password })),
   verifyLoginOtp: ({ email, otp }) =>
     unwrap(api.post("/auth/login/verify-otp", { email, otp })),
+  requestPasswordReset: ({ email }) =>
+    unwrap(api.post("/auth/forgot-password", { email })),
+  resetPassword: ({ token, password }) =>
+    unwrap(api.post(`/auth/reset-password/${token}`, { password })),
   resendOtp: ({ email, purpose }) =>
     unwrap(api.post("/auth/resend-otp", { email, purpose })),
+  logout: () => unwrap(api.post("/auth/logout")),
   me: () => unwrap(api.get("/auth/me")),
 };
 
@@ -75,14 +88,22 @@ export const labApi = {
 export const adminApi = {
   pendingDoctors: () => unwrap(api.get("/admin/doctors/pending")),
   verifyDoctor: (id) => unwrap(api.patch(`/admin/doctors/${id}/verify`)),
-  rejectDoctor: (id, reason) => unwrap(api.patch(`/admin/doctors/${id}/reject`, { reason })),
+  rejectDoctor: (id, reason) =>
+    unwrap(api.patch(`/admin/doctors/${id}/reject`, { reason })),
   allAppointments: (params) =>
     unwrap(api.get("/admin/appointments", { params })),
   deleteReview: (id) => unwrap(api.delete(`/admin/reviews/${id}`)),
   stats: () => unwrap(api.get("/admin/stats")),
   users: (params) => unwrap(api.get("/admin/users", { params })),
-  updateUserRole: (id, role) => unwrap(api.patch(`/admin/users/${id}/role`, { role })),
+  updateUserRole: (id, role) =>
+    unwrap(api.patch(`/admin/users/${id}/role`, { role })),
   reviews: (params) => unwrap(api.get("/admin/reviews", { params })),
   getUsers: () => unwrap(api.get("/admin/users")),
   deactivateUser: (id) => unwrap(api.patch(`/admin/users/${id}/deactivate`)),
+};
+
+export const searchApi = {
+  suggestions: (q) => unwrap(api.get("/search/suggestions", { params: { q } })),
+  trending: () => unwrap(api.get("/search/trending")),
+  global: (params) => unwrap(api.get("/search/global", { params })),
 };

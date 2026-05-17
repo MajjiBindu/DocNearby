@@ -1,27 +1,51 @@
+import logger from "../utils/logger.js";
+
 export function notFound(req, res) {
   return res.status(404).json({
     success: false,
+    message: "Resource not found",
     data: {},
-    message: 'Not found',
-    error: `Route ${req.method} ${req.originalUrl} not found`,
-  })
+    error: {
+      code: "NOT_FOUND",
+      message: `Route ${req.method} ${req.originalUrl} not found`,
+    },
+  });
 }
 
 // eslint-disable-next-line no-unused-vars
 export function errorHandler(err, req, res, next) {
-  const status = err.statusCode || err.status || 500
-  const message = err.message || (status >= 500 ? 'Server error' : 'Request failed')
-  console.error('[ERROR] Unhandled API error:', {
-    method: req.method,
-    url: req.originalUrl,
-    status,
-    message,
-    stack: err.stack,
-  })
-  return res.status(status).json({
+  let { statusCode, message } = err;
+
+  if (!statusCode) statusCode = 500;
+
+  const response = {
     success: false,
+    message: statusCode >= 500 ? "Internal Server Error" : message,
     data: {},
-    message,
-    error: err.message || String(err),
-  })
+    error: {
+      code:
+        err.errorCode || (statusCode >= 500 ? "SERVER_ERROR" : "BAD_REQUEST"),
+      message: message,
+      ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
+    },
+  };
+
+  if (statusCode >= 500) {
+    logger.error("[API ERROR] Unhandled exception:", {
+      method: req.method,
+      url: req.originalUrl,
+      status: statusCode,
+      message: err.message,
+      stack: err.stack,
+    });
+  } else {
+    logger.warn("[API WARN] Client error:", {
+      method: req.method,
+      url: req.originalUrl,
+      status: statusCode,
+      message: err.message,
+    });
+  }
+  console.error(err);
+  return res.status(statusCode).json(response);
 }

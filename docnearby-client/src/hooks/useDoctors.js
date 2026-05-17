@@ -27,7 +27,7 @@ export function useDoctors(params) {
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [key, requestParams])
 
   return { loading, error, doctors }
