@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import SEO from "../components/common/SEO.jsx";
 import { doctorApi, reviewApi } from "../services/api.js";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../../context/useAuth.js";
 import translations from "../utils/i18n.js";
 
 export default function DoctorProfile() {
@@ -32,6 +32,7 @@ export default function DoctorProfile() {
   }, []);
 
   const t = translations[lang];
+  const doctorId = doctor?._id || id;
 
   const fetchReviews = async () => {
     setFetchingReviews(true);
@@ -75,7 +76,7 @@ export default function DoctorProfile() {
     setSubmitting(true);
     try {
       await reviewApi.create({
-        doctorId: id,
+        doctorId,
         rating: userRating,
         comment: userComment,
       });
@@ -206,7 +207,7 @@ export default function DoctorProfile() {
                     <p className="text-4xl font-black text-secondary" aria-label={`Fee: ${doctor.consultationFee} rupees`}>₹{doctor.consultationFee ?? "—"}</p>
                   </div>
                   <button
-                    onClick={() => navigate(`/book/${id}`)}
+                    onClick={() => navigate(`/book/${doctorId}`)}
                     className="btn-primary !px-12 !py-5 !text-xl w-full sm:w-auto focus-visible:ring-offset-2"
                   >
                     Book Appointment

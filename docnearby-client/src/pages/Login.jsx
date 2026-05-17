@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import OtpInput from "../components/auth/OtpInput.jsx";
 import SEO from "../components/common/SEO.jsx";
 import { authApi } from "../services/api.js";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../context/useAuth.js";
 import { PATH_PAGE } from "../routes/paths.js";
 
 const initialForm = {
@@ -32,9 +32,9 @@ export default function Login() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
-      navigate(user.role === "doctor" ? "/doctor" : "/patient", {
-        replace: true,
-      });
+      if (user.role === "doctor") navigate("/doctor", { replace: true });
+      else if (user.role === "admin") navigate("/admin", { replace: true });
+      else navigate("/patient", { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
 
@@ -123,7 +123,7 @@ export default function Login() {
 
       if (res?.success) {
         const nextUser = res.data?.user || null;
-        setToken(res.data?.token || "");
+        if (res.data?.token) setToken(res.data.token);
         setUser(nextUser);
       } else {
         setError(res?.message || "Authentication failed: Invalid code.");

@@ -2,9 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import SlotPicker from "../components/appointment/SlotPicker.jsx";
 import BookingForm from "../components/appointment/BookingForm.jsx";
-import Spinner from "../components/common/Spinner.jsx";
 import { appointmentApi, doctorApi } from "../services/api.js";
-import { useAuth } from "../hooks/useAuth.js";
+import { useAuth } from "../context/useAuth.js";
 
 function todayIso() {
   const d = new Date();
@@ -88,8 +87,18 @@ export default function BookAppointment() {
         <div className="medical-card p-8 md:p-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="flex items-center gap-4 mb-8">
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
               </svg>
             </div>
             <div>
@@ -130,14 +139,14 @@ export default function BookAppointment() {
                   </div>
                 )}
               </div>
-              
+
               <SlotPicker
                 available={slotInfo.available}
                 booked={slotInfo.booked}
                 value={slot}
                 onChange={setSlot}
               />
-              
+
               {!loadingSlots && !slotInfo.available.length ? (
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center">
                   <p className="text-sm text-medical-text-light font-bold">
@@ -148,18 +157,38 @@ export default function BookAppointment() {
             </div>
 
             {message && (
-              <div className={`p-4 rounded-xl border font-bold text-sm flex items-center gap-3 animate-in shake-in duration-300 ${
-                message.includes("successfully") 
-                  ? "bg-emerald-50 border-emerald-100 text-emerald-700" 
-                  : "bg-red-50 border-red-100 text-red-600"
-              }`}>
+              <div
+                className={`p-4 rounded-xl border font-bold text-sm flex items-center gap-3 animate-in shake-in duration-300 ${
+                  message.includes("successfully")
+                    ? "bg-emerald-50 border-emerald-100 text-emerald-700"
+                    : "bg-red-50 border-red-100 text-red-600"
+                }`}
+              >
                 {message.includes("successfully") ? (
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
                   </svg>
                 ) : (
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 )}
                 {message}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import SEO from "../components/common/SEO.jsx";
 import { authApi } from "../services/api.js";
@@ -14,13 +14,21 @@ const passwordRules = [
 export default function ResetPassword() {
   const { token } = useParams();
   const navigate = useNavigate();
+  const hasInvalidToken = !token || token === "undefined";
+
+  // Guard for missing reset token on page load
+  useEffect(() => {
+    if (hasInvalidToken) {
+      setError("Reset token is missing or invalid. Please request a new password reset link.");
+    }
+  }, [hasInvalidToken]);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(() =>
-    token ? "" : "Reset token is missing or invalid.",
+    hasInvalidToken ? "Reset token is missing or invalid." : "",
   );
   const [success, setSuccess] = useState("");
 
@@ -41,7 +49,7 @@ export default function ResetPassword() {
     setError("");
     setSuccess("");
 
-    if (!token) {
+    if (hasInvalidToken) {
       setError("Missing reset token.");
       return;
     }
@@ -160,7 +168,8 @@ export default function ResetPassword() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || hasInvalidToken}
+              aria-disabled={loading || hasInvalidToken}
               className="btn-primary w-full !py-5 !text-base disabled:opacity-50 shadow-xl shadow-primary/20 focus-visible:ring-offset-2"
             >
               {loading ? (

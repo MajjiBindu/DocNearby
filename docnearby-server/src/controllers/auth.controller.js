@@ -6,7 +6,6 @@ import asyncHandler from "../middleware/asyncHandler.js";
 import { sendResponse } from "../utils/response.js";
 import AppError from "../utils/AppError.js";
 import logger from "../utils/logger.js";
-import { env } from "../config/constants.js";
 
 const SIGNUP_PURPOSE = "signup";
 const LOGIN_PURPOSE = "login";
@@ -66,7 +65,7 @@ export const verifySignupOtp = asyncHandler(async (req, res) => {
   res.cookie("dn_token", token, authService.cookieOptions);
 
   logger.info(`User registered and verified: ${email}`);
-  return sendResponse(res, 201, "Signup verified", { user });
+  return sendResponse(res, 201, "Signup verified", { user, token });
 });
 
 /**
@@ -110,7 +109,7 @@ export const verifyLoginOtp = asyncHandler(async (req, res) => {
   res.cookie("dn_token", token, authService.cookieOptions);
 
   logger.info(`User logged in: ${email}`);
-  return sendResponse(res, 200, "Login verified", { user });
+  return sendResponse(res, 200, "Login verified", { user, token });
 });
 
 /**
@@ -152,11 +151,13 @@ export const requestPasswordReset = asyncHandler(async (req, res) => {
 
   const resetToken =
     await authService.createPasswordResetToken(normalizedEmail);
-  const frontendUrl = env("CLIENT_URL", "http://localhost:5173").replace(
-    /\/$/,
-    "",
-  );
+  console.log("Generated reset token:", resetToken);
+
+  const frontendUrl = (process.env.CLIENT_URL || "http://localhost:5173")
+    .trim()
+    .replace(/\/$/, "");
   const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
+  console.log("Reset URL being sent:", resetUrl);
 
   if (resetToken) {
     await emailService.sendPasswordResetEmail(normalizedEmail, {

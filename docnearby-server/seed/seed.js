@@ -163,10 +163,18 @@ async function main() {
     'Dentist',
   ]
   const languages = ['Hindi', 'English', 'Telugu', 'Tamil', 'Kannada', 'Marathi']
+  const slotCoordinatesByDoctor = [
+    [80.4365, 16.3067],
+    [80.648, 16.5062],
+    [79.9865, 14.4426],
+    [79.4192, 13.6288],
+    [78.0373, 15.8281],
+  ]
 
   const doctors = []
   for (let i = 0; i < doctorUsers.length; i++) {
     const clinic = randPick(clinics)
+    const slotCoordinates = slotCoordinatesByDoctor[i % slotCoordinatesByDoctor.length]
     doctors.push({
       userId: doctorUsers[i]._id,
       specialty: randPick(specialties),
@@ -176,9 +184,9 @@ async function main() {
       experience: randPick([3, 5, 7, 10, 12]),
       clinicId: clinic._id,
       availableSlots: [
-        { day: 'Mon', startTime: '09:00', endTime: '13:00', slotDuration: 20 },
-        { day: 'Wed', startTime: '16:00', endTime: '19:00', slotDuration: 20 },
-        { day: 'Sat', startTime: '10:00', endTime: '14:00', slotDuration: 20 },
+        { day: 'Mon', startTime: '09:00', endTime: '13:00', slotDuration: 20, coordinates: { type: 'Point', coordinates: slotCoordinates } },
+        { day: 'Wed', startTime: '16:00', endTime: '19:00', slotDuration: 20, coordinates: { type: 'Point', coordinates: slotCoordinates } },
+        { day: 'Sat', startTime: '10:00', endTime: '14:00', slotDuration: 20, coordinates: { type: 'Point', coordinates: slotCoordinates } },
       ],
       isVerified: true,
       rating: randPick([4.1, 4.3, 4.5, 4.7]),

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import mongoose from "mongoose";
 import { Doctor } from '../models/Doctor.js';
 import { Clinic } from '../models/Clinic.js';
 import { User } from '../models/User.js';
@@ -81,6 +82,10 @@ export const searchDoctors = async (params) => {
 };
 
 export const findById = async (id) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error("Invalid doctor ID format");
+  }
+
   const doctor = await Doctor.findById(id)
     .populate("userId", "name email role")
     .populate("clinicId", "name address city state pincode location phone");
@@ -192,4 +197,3 @@ export const getAutocompleteSuggestions = async (q) => {
 
   return suggestions.slice(0, 15);
 };
-

@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { useAuth } from "../../context/useAuth.js";
 import translations from "../../utils/i18n.js";
 import LanguageSwitcher from "./LanguageSwitcher.jsx";
 
 export default function Navbar() {
-  const { token, user, logout } = useAuth();
+  const { isAuthenticated, isInitialized, user, logout } = useAuth();
   const navigate = useNavigate();
 
   const [lang, setLang] = useState(
@@ -75,7 +75,7 @@ export default function Navbar() {
           <div className="h-6 w-px bg-slate-200 hidden lg:block"></div>
 
           <div className="flex items-center gap-4">
-            {token ? (
+            {!isInitialized ? null : isAuthenticated ? (
               <>
                 <NavLink
                   to={user?.role === "doctor" ? "/doctor" : "/patient"}
@@ -95,10 +95,7 @@ export default function Navbar() {
                 </button>
               </>
             ) : (
-              <NavLink
-                to="/login"
-                className="btn-primary !py-2 !px-6 !text-sm"
-              >
+              <NavLink to="/login" className="btn-primary !py-2 !px-6 !text-sm">
                 {t.login}
               </NavLink>
             )}
@@ -118,9 +115,19 @@ export default function Navbar() {
             stroke="currentColor"
           >
             {menuOpen ? (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             )}
           </svg>
         </button>
@@ -152,9 +159,9 @@ export default function Navbar() {
             >
               {t.nearby}
             </NavLink>
-            
+
             <div className="pt-4 flex flex-col gap-3">
-              {token ? (
+              {!isInitialized ? null : isAuthenticated ? (
                 <>
                   <NavLink
                     to={user?.role === "doctor" ? "/doctor" : "/patient"}

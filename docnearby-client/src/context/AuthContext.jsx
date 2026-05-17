@@ -1,88 +1,87 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { authApi } from '../services/api.js'
-
-const AuthContext = createContext(null)
-
-function safeJsonParse(value) {
-  try {
-    return JSON.parse(value)
-  } catch {
-    return null
-  }
-}
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { authApi } from "../services/api.js";
+import { safeJsonParse } from "./auth-utils.js";
+import { AuthContext } from "./auth-context.js";
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem('dn_token') || '')
-  const [user, setUser] = useState(() => safeJsonParse(localStorage.getItem('dn_user')) || null)
-  const [loading, setLoading] = useState(false)
-  const [isInitialized, setIsInitialized] = useState(false)
+  const [token, setToken] = useState("");
+  const [user, setUser] = useState(null);
 
-  const logout = useCallback(() => {
-    setToken('')
-    setUser(null)
-    localStorage.removeItem('dn_token')
-    localStorage.removeItem('dn_user')
-  }, [])
+  const [loading, setLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  const logout = useCallback(async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      // ignore errors during logout
+    }
+    setToken("");
+    setUser(null);
+    localStorage.removeItem("dn_token");
+    localStorage.removeItem("dn_user");
+  }, []);
 
   const refreshMe = useCallback(async () => {
-    if (!token) {
-      setIsInitialized(true)
-      return null
-    }
-    setLoading(true)
+    setLoading(true);
+
     try {
-      const res = await authApi.me()
+      const res = await authApi.me();
+
       if (res?.success) {
-        setUser(res.data?.user || null)
+        setUser(res.data?.user || null);
+
+        if (res.data?.token) {
+          setToken(res.data.token);
+        }
       } else {
-        logout()
+        logout();
       }
-      return res
-    } catch (e) {
-      if (e.response?.status === 401) logout()
-      return null
+
+      return res;
+    } catch {
+      logout();
+      return null;
     } finally {
-      setLoading(false)
-      setIsInitialized(true)
+      setLoading(false);
+      setIsInitialized(true);
     }
-  }, [token, logout])
+  }, [logout]);
 
-  // Persistence
   useEffect(() => {
-    if (token) localStorage.setItem('dn_token', token)
-    if (user) localStorage.setItem('dn_user', JSON.stringify(user))
-  }, [token, user])
+    if (token) localStorage.setItem("dn_token", token);
 
-  // Initialization
+    if (user) {
+      localStorage.setItem("dn_user", JSON.stringify(user));
+    }
+  }, [token, user]);
+
   useEffect(() => {
     if (!isInitialized) {
-      refreshMe()
-    }
-  }, [refreshMe, isInitialized])
+      const init = async () => {
+        await refreshMe();
+      };
 
-  const isAuthenticated = !!token && !!user
+      init();
+    }
+  }, [refreshMe, isInitialized]);
+
+  const isAuthenticated = !!user;
 
   const value = useMemo(
-    () => ({ 
-      token, 
-      setToken, 
-      user, 
-      setUser, 
-      loading, 
-      isInitialized, 
+    () => ({
+      token,
+      setToken,
+      user,
+      setUser,
+      loading,
+      isInitialized,
       isAuthenticated,
-      logout, 
-      refreshMe 
+      logout,
+      refreshMe,
     }),
     [token, user, loading, isInitialized, isAuthenticated, logout, refreshMe],
-  )
+  );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
-export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
-  return ctx
-}
-

@@ -1,24 +1,17 @@
-import { Navigate, useLocation as useRRLocation } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext.jsx'
-import LoadingScreen from './LoadingScreen.jsx'
+import { Navigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import Spinner from "./Spinner";
 
-export default function ProtectedRoute({ children, roles }) {
-  const { token, user, isInitialized, isAuthenticated } = useAuth()
-  const loc = useRRLocation()
+export default function ProtectedRoute({ children, allowedRoles }) {
+  const { isAuthenticated, isInitialized, user } = useAuth();
 
-  if (token && !isInitialized) {
-    return <LoadingScreen />
+  if (!isInitialized) return <Spinner />;
+
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  if (allowedRoles && !allowedRoles.includes(user?.role)) {
+    return <Navigate to="/login" replace />;
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: loc.pathname }} />
-  }
-
-  if (roles?.length && user?.role && !roles.includes(user.role)) {
-    const fallback = user.role === 'doctor' ? '/doctor' : '/patient'
-    return <Navigate to={fallback} replace />
-  }
-
-  return children
+  return children;
 }
-

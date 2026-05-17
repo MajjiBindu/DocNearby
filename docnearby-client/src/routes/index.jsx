@@ -41,7 +41,7 @@ export default function Router() {
     {
       path: PATH_DASHBOARD.patient,
       element: (
-        <ProtectedRoute roles={["patient"]}>
+        <ProtectedRoute allowedRoles={["patient"]}>
           <MainLayout />
         </ProtectedRoute>
       ),
@@ -50,7 +50,7 @@ export default function Router() {
     {
       path: PATH_DASHBOARD.doctor,
       element: (
-        <ProtectedRoute roles={["doctor"]}>
+        <ProtectedRoute allowedRoles={["doctor"]}>
           <MainLayout />
         </ProtectedRoute>
       ),
@@ -59,7 +59,7 @@ export default function Router() {
     {
       path: PATH_DASHBOARD.admin,
       element: (
-        <ProtectedRoute roles={["admin"]}>
+        <ProtectedRoute allowedRoles={["admin"]}>
           <MainLayout />
         </ProtectedRoute>
       ),
