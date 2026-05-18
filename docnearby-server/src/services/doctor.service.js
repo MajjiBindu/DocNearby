@@ -124,6 +124,13 @@ export const update = async (id, data, user) => {
         if (coords) s.coordinates = coords;
       }));
     }
+
+    // strip any slot that still has incomplete coordinates
+    doctor.availableSlots.forEach((s) => {
+      if (s.coordinates && !s.coordinates.coordinates?.length) {
+        s.coordinates = undefined;
+      }
+    });
   }
 
   await doctor.save();

@@ -75,13 +75,17 @@ export default function DashboardLayout({
               </nav>
             </div>
 
-            <div className="medical-card p-6 bg-slate-900 border-none shadow-2xl">
-              <div className="text-white">
-                <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-4">
+            <div className="medical-card p-6 shadow-md">
+              <div className="text-secondary">
+  <p className="text-xs font-bold text-medical-text-light uppercase tracking-widest mb-4">
                   Support & Help
                 </p>
                 <div className="space-y-4">
-                  <button className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-sm font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                  <button
+                    onClick={() => window.open("https://docs.docnearby.com", "_blank")}
+                    title="Help Center"
+                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors text-sm font-bold text-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
                     <svg
                       className="w-5 h-5 text-primary"
                       fill="none"
@@ -98,7 +102,11 @@ export default function DashboardLayout({
                     </svg>
                     Help Center
                   </button>
-                  <button className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-sm font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                  <button
+                    onClick={() => window.open("mailto:support@docnearby.com")}
+                    title="Contact Support"
+                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors text-sm font-bold text-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
                     <svg
                       className="w-5 h-5 text-primary"
                       fill="none"

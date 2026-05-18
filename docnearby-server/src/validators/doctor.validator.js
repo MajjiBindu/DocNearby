@@ -11,6 +11,8 @@ export const updateDoctorSchema = Joi.object({
     day: Joi.string().valid("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat").required(),
     startTime: Joi.string().pattern(/^([01]\d|2[0-3]):?([0-5]\d)$/).required(),
     endTime: Joi.string().pattern(/^([01]\d|2[0-3]):?([0-5]\d)$/).required(),
-    slotDuration: Joi.number().min(5).max(120).default(30)
+    slotDuration: Joi.number().min(5).max(120).default(30),
+    clinicName: Joi.string().allow("", null).trim(),
+    location: Joi.string().allow("", null).trim()
   }))
 }).min(1);

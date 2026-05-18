@@ -10,8 +10,8 @@ const slotSchema = new mongoose.Schema(
     clinicName: { type: String },
     location: { type: String },
     coordinates: {
-      type: { type: String, default: "Point" },
-      coordinates: { type: [Number], default: undefined },
+      type: { type: String, enum: ["Point"] },
+      coordinates: { type: [Number] },
     },
   },
   { _id: false },
