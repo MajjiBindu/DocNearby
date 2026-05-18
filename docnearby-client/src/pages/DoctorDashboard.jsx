@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import SEO from "../components/common/SEO.jsx";
-import { appointmentApi, doctorApi, clinicApi, prescriptionApi } from "../services/api.js";
+import { appointmentApi, doctorApi, clinicApi, prescriptionApi, medicalRecordApi } from "../services/api.js";
 import { LANGUAGES, SPECIALTIES } from "../utils/constants.js";
 import translations from "../utils/i18n.js";
 import Modal from "../components/common/Modal.jsx";
@@ -48,6 +48,43 @@ export default function DoctorDashboard() {
   const [rxAdvice, setRxAdvice] = useState("");
   const [rxNotes, setRxNotes] = useState("");
   const [submittingRx, setSubmittingRx] = useState(false);
+
+  // Patient Records Search States
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [patientSearch, setPatientSearch] = useState("");
+  const [patientRecords, setPatientRecords] = useState([]);
+  const [recordsPage, setRecordsPage] = useState(1);
+  const [recordsTotalPages, setRecordsTotalPages] = useState(1);
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [recordModalOpen, setRecordModalOpen] = useState(false);
+
+  // Extract unique patients from appointments
+  const patientList = useMemo(() => {
+    if (!appointments || appointments.length === 0) return [];
+    const seen = new Set();
+    const list = [];
+    appointments.forEach(a => {
+      if (a?.patientId && !seen.has(a.patientId._id)) {
+        seen.add(a.patientId._id);
+        list.push(a.patientId);
+      }
+    });
+    return list;
+  }, [appointments]);
+
+  useEffect(() => {
+    if (!selectedPatient) return;
+    async function loadPatientRecords() {
+      try {
+        const res = await medicalRecordApi.doctorPatient(selectedPatient._id, { page: recordsPage, limit: 5 });
+        setPatientRecords(res?.data?.records || []);
+        setRecordsTotalPages(res?.data?.pagination?.pages || 1);
+      } catch (err) {
+        console.error("Failed to load patient records", err);
+      }
+    }
+    loadPatientRecords();
+  }, [selectedPatient, recordsPage]);
 
   const openPrescriptionModal = (appt) => {
     setPrescribeTarget(appt);
@@ -605,6 +642,179 @@ export default function DoctorDashboard() {
     );
   };
 
+  const renderPatientRoster = () => {
+    const filteredPatients = patientList.filter(p => 
+      p?.name?.toLowerCase().includes(patientSearch.toLowerCase()) ||
+      p?.email?.toLowerCase().includes(patientSearch.toLowerCase())
+    );
+
+    if (selectedPatient) {
+      return (
+        <div className="space-y-6 animate-in slide-in-from-right-10 duration-700">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => { setSelectedPatient(null); setPatientRecords([]); }}
+                className="p-2 rounded-xl border border-slate-100 hover:bg-slate-50 text-secondary transition-colors"
+                aria-label="Back to Patient list"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              <div>
+                <h3 className="font-black text-secondary text-base">{selectedPatient.name}</h3>
+                <p className="text-xs text-medical-text-light font-medium">{selectedPatient.email}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-12 gap-8">
+            <div className="md:col-span-4 space-y-6">
+              <div className="p-5 rounded-3xl bg-slate-50 border border-slate-100 space-y-4">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Patient Profile</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black text-lg">
+                    {selectedPatient.name?.charAt(0) || "P"}
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-secondary text-sm">{selectedPatient.name}</h4>
+                    <span className="text-[9px] font-black bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded uppercase tracking-widest">Verified History</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="md:col-span-8 space-y-6">
+              <DashboardWidget 
+                title="Clinical History & Records" 
+                subtitle={`Historical consultations logs for ${selectedPatient.name}`}
+                icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>}
+              >
+                <div className="space-y-4" role="list">
+                  {patientRecords.length === 0 ? (
+                    <div className="py-20 text-center text-xs font-bold text-slate-400 uppercase tracking-widest" role="status">
+                      No medical records recorded for this patient.
+                    </div>
+                  ) : (
+                    patientRecords.map((rec) => (
+                      <div 
+                        key={rec._id} 
+                        role="button" 
+                        tabIndex="0" 
+                        onClick={() => { setSelectedRecord(rec); setRecordModalOpen(true); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { setSelectedRecord(rec); setRecordModalOpen(true); } }}
+                        className="p-4 rounded-2xl border border-slate-100 bg-white hover:shadow-xl hover:border-primary/20 transition-all cursor-pointer group focus:ring-2 focus:ring-primary outline-none"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-black text-secondary group-hover:text-primary transition-colors">{rec.diagnosis}</h4>
+                          <span className="text-[9px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded uppercase tracking-widest">Record</span>
+                        </div>
+                        <p className="text-xs font-medium text-medical-text-light">
+                          Consultation Date: {new Date(rec.createdAt).toLocaleDateString()}
+                        </p>
+                        
+                        {rec.pdfs && rec.pdfs.length > 0 && (
+                          <div className="mt-2.5 flex items-center gap-1.5 text-[10px] text-primary font-bold uppercase tracking-wider">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                            <span>{rec.pdfs.length} PDF Attachments</span>
+                          </div>
+                        )}
+
+                        {rec.medicines && rec.medicines.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {rec.medicines.slice(0, 3).map((med, idx) => (
+                              <div key={idx} className="px-2 py-1 bg-slate-50 rounded text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                                {med.name}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+
+                  {/* Roster Record Pagination */}
+                  {recordsTotalPages > 1 && (
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                      <button
+                        disabled={recordsPage === 1}
+                        onClick={() => setRecordsPage(recordsPage - 1)}
+                        className="px-4 py-2 rounded-xl border border-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:bg-slate-50 transition-all disabled:opacity-40"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Page {recordsPage} of {recordsTotalPages}
+                      </span>
+                      <button
+                        disabled={recordsPage === recordsTotalPages}
+                        onClick={() => setRecordsPage(recordsPage + 1)}
+                        className="px-4 py-2 rounded-xl border border-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:bg-slate-50 transition-all disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </DashboardWidget>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6 animate-in slide-in-from-right-10 duration-700">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+          <div>
+            <h3 className="font-black text-secondary text-base">Patient Roster</h3>
+            <p className="text-xs text-medical-text-light font-medium">Verify your clinical lookup catalog and medical histories</p>
+          </div>
+          <div className="relative w-full sm:w-72">
+            <input 
+              type="text"
+              placeholder="Search patients by name..."
+              value={patientSearch}
+              onChange={(e) => setPatientSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+            <span className="absolute left-3.5 top-3 text-slate-400">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            </span>
+          </div>
+        </div>
+
+        {filteredPatients.length === 0 ? (
+          <div className="py-20 text-center border border-slate-100 rounded-3xl bg-slate-50/50">
+            <p className="text-medical-text-light font-bold text-xs uppercase tracking-widest">No matching patients found</p>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {filteredPatients.map((pat) => (
+              <div 
+                key={pat._id}
+                role="button"
+                tabIndex="0"
+                onClick={() => { setSelectedPatient(pat); setRecordsPage(1); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { setSelectedPatient(pat); setRecordsPage(1); } }}
+                className="p-5 rounded-3xl bg-white border border-slate-100 hover:shadow-xl hover:border-primary/20 cursor-pointer transition-all focus:ring-2 focus:ring-primary outline-none group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                    {pat.name?.charAt(0) || "P"}
+                  </div>
+                  <div className="truncate">
+                    <h4 className="font-extrabold text-secondary text-sm group-hover:text-primary transition-colors truncate">{pat.name}</h4>
+                    <p className="text-[10px] text-slate-400 font-semibold truncate">{pat.email}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <DashboardLayout 
       title="Clinician HQ" 
@@ -636,11 +846,7 @@ export default function DoctorDashboard() {
             {activeTab === 'schedule' && renderSchedule()}
             {activeTab === 'availability' && renderAvailability()}
             {activeTab === 'analytics' && renderAnalytics()}
-            {activeTab === 'patients' && (
-              <DashboardWidget title="Patient Roster" subtitle="Historical patient database and interaction logs">
-                <div className="py-20 text-center text-medical-text-light font-bold uppercase tracking-widest text-xs" role="status">Roster synchronization in progress...</div>
-              </DashboardWidget>
-            )}
+            {activeTab === 'patients' && renderPatientRoster()}
           </div>
         )}
       </div>
@@ -787,6 +993,118 @@ export default function DoctorDashboard() {
             </div>
           )}
         </form>
+      </Modal>
+
+      <Modal open={recordModalOpen} title="Patient Clinical Record" onClose={() => setRecordModalOpen(false)}>
+        <div className="space-y-6 py-2">
+          {selectedRecord && (
+            <div className="space-y-6">
+              {/* Patient header */}
+              <div className="flex items-start gap-4 pb-4 border-b border-slate-100">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-xl shadow-inner shrink-0 animate-pulse">
+                  Rx
+                </div>
+                <div>
+                  <h4 className="font-black text-secondary text-base">{selectedPatient?.name}</h4>
+                  <p className="text-xs font-bold text-medical-text-light uppercase tracking-widest">{selectedPatient?.email}</p>
+                  <p className="text-[10px] font-semibold text-slate-400 mt-1">
+                    Record Date: {new Date(selectedRecord.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Diagnosis banner */}
+              <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
+                <span className="text-[9px] font-black text-primary uppercase tracking-widest block">Diagnosis</span>
+                <p className="font-extrabold text-slate-800 text-sm mt-0.5">{selectedRecord.diagnosis}</p>
+              </div>
+
+              {/* Medicines table */}
+              <div>
+                <span className="text-[9px] font-black text-medical-text-light uppercase tracking-widest block mb-2">Prescribed Medications</span>
+                <div className="border border-slate-100 rounded-2xl overflow-hidden bg-white">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs min-w-[300px]">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold">
+                          <th className="p-3">Medicine</th>
+                          <th className="p-3">Dosage</th>
+                          <th className="p-3">Frequency</th>
+                          <th className="p-3">Duration</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {selectedRecord.medicines && selectedRecord.medicines.length > 0 ? (
+                          selectedRecord.medicines.map((med, index) => (
+                            <tr key={index} className="hover:bg-slate-50/50">
+                              <td className="p-3 font-extrabold text-secondary">{med.name}</td>
+                              <td className="p-3 font-semibold text-slate-600">{med.dosage || "-"}</td>
+                              <td className="p-3 font-semibold text-slate-600">{med.frequency || "-"}</td>
+                              <td className="p-3 font-semibold text-slate-600">{med.duration || "-"}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="4" className="p-4 text-center text-slate-400">No medicines prescribed.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Advice */}
+              {selectedRecord.advice && (
+                <div className="p-4 rounded-2xl bg-emerald-50/30 border border-emerald-100/50">
+                  <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest block">Clinical Advice</span>
+                  <p className="text-xs font-semibold text-slate-700 mt-1 whitespace-pre-wrap leading-relaxed">{selectedRecord.advice}</p>
+                </div>
+              )}
+
+              {/* Notes */}
+              {selectedRecord.notes && (
+                <div className="p-4 rounded-2xl bg-amber-50/30 border border-amber-100/50">
+                  <span className="text-[9px] font-black text-amber-600 uppercase tracking-widest block">Clinician Notes</span>
+                  <p className="text-xs font-semibold text-slate-700 mt-1 whitespace-pre-wrap leading-relaxed">{selectedRecord.notes}</p>
+                </div>
+              )}
+
+              {/* PDFs List */}
+              {selectedRecord.pdfs && selectedRecord.pdfs.length > 0 && (
+                <div className="p-4 rounded-2xl bg-blue-50/30 border border-blue-100/50 space-y-2">
+                  <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest block">Attached Documents</span>
+                  <div className="space-y-2">
+                    {selectedRecord.pdfs.map((pdf, idx) => (
+                      <a 
+                        key={idx}
+                        href={pdf.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 hover:shadow-md transition-all text-xs font-bold text-slate-700 focus:outline-none"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center font-black text-[10px]">PDF</div>
+                          <span className="truncate max-w-[200px]">{pdf.name}</span>
+                        </div>
+                        <span className="text-[10px] font-black text-primary uppercase tracking-widest shrink-0">Download</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-4 border-t border-slate-100">
+                <button
+                  onClick={() => setRecordModalOpen(false)}
+                  className="px-6 py-2.5 rounded-xl bg-primary text-xs font-black text-white uppercase tracking-widest hover:bg-primary-dark transition-all focus:outline-none"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </Modal>
 
       {toast && (

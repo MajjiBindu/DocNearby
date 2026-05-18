@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import AppointmentCard from "../components/appointment/AppointmentCard.jsx";
 import Modal from "../components/common/Modal.jsx";
 import SEO from "../components/common/SEO.jsx";
-import { appointmentApi, prescriptionApi } from "../services/api.js";
+import { appointmentApi, prescriptionApi, medicalRecordApi } from "../services/api.js";
 import translations from "../utils/i18n.js";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import { DashboardStatCard, DashboardWidget, DashboardTabs } from "../components/dashboard/DashboardComponents.jsx";
@@ -21,6 +21,24 @@ export default function PatientDashboard() {
   const [prescriptions, setPrescriptions] = useState([]);
   const [selectedRx, setSelectedRx] = useState(null);
   const [rxModalOpen, setRxModalOpen] = useState(false);
+
+  // Medical Records pagination & state
+  const [recordsPage, setRecordsPage] = useState(1);
+  const [recordsTotalPages, setRecordsTotalPages] = useState(1);
+  const [medicalRecords, setMedicalRecords] = useState([]);
+
+  useEffect(() => {
+    async function loadRecords() {
+      try {
+        const res = await medicalRecordApi.patient({ page: recordsPage, limit: 5 });
+        setMedicalRecords(res?.data?.records || []);
+        setRecordsTotalPages(res?.data?.pagination?.pages || 1);
+      } catch (e) {
+        console.error("Failed to load medical records", e);
+      }
+    }
+    loadRecords();
+  }, [recordsPage]);
 
 
   const loadAppointments = useCallback(async () => {
@@ -156,50 +174,26 @@ export default function PatientDashboard() {
 
   const renderHealthRecords = () => (
     <div className="space-y-8 animate-in slide-in-from-right-10 duration-700" role="tabpanel" aria-labelledby="tab-records">
-      <div className="grid md:grid-cols-2 gap-8">
+      <div className="grid gap-8">
         <DashboardWidget 
-          title="Diagnostic Reports" 
-          subtitle="Recent laboratory and radiology results"
-          icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>}
-        >
-          <div className="space-y-4" role="list">
-            {[1, 2].map((i) => (
-              <div key={i} role="listitem" className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 group hover:bg-white hover:shadow-xl transition-all focus-within:ring-2 focus-within:ring-primary outline-none">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-black" aria-hidden="true">PDF</div>
-                  <div>
-                    <p className="text-sm font-black text-secondary">Blood Panel - Comprehensive</p>
-                    <p className="text-[10px] font-bold text-medical-text-light uppercase tracking-widest">Oct 12, 2023 • Apollo Diagnostics</p>
-                  </div>
-                </div>
-                <button className="text-primary hover:bg-primary/10 p-2 rounded-lg transition-colors focus:outline-none" aria-label="Download Diagnostic Report">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                </button>
-              </div>
-            ))}
-            <button className="w-full py-3 text-xs font-black text-primary uppercase tracking-widest hover:underline text-center focus:outline-none">View All Diagnostic History</button>
-          </div>
-        </DashboardWidget>
-
-        <DashboardWidget 
-          title="Digital Prescriptions" 
-          subtitle="Medication orders from your clinicians"
+          title="Clinical History & Medical Records" 
+          subtitle="Medication orders, diagnosis history, and clinical documentation"
           icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>}
         >
           <div className="space-y-4" role="list">
-            {prescriptions.length === 0 ? (
-              <div className="py-10 text-center text-xs font-bold text-slate-400 uppercase tracking-widest" role="status">
-                No digital prescriptions shared yet.
+            {medicalRecords.length === 0 ? (
+              <div className="py-16 text-center text-xs font-bold text-slate-400 uppercase tracking-widest" role="status">
+                No medical records shared yet.
               </div>
             ) : (
-              prescriptions.map((rx) => (
+              medicalRecords.map((rx) => (
                 <div 
                   key={rx._id} 
                   role="button" 
                   tabIndex="0" 
                   onClick={() => { setSelectedRx(rx); setRxModalOpen(true); }}
                   onKeyDown={(e) => { if (e.key === 'Enter') { setSelectedRx(rx); setRxModalOpen(true); } }}
-                  className="p-4 rounded-2xl border border-slate-100 bg-white hover:shadow-xl hover:border-primary/20 transition-all cursor-pointer group focus:ring-2 focus:ring-primary outline-none"
+                  className="p-5 rounded-2xl border border-slate-100 bg-white hover:shadow-xl hover:border-primary/20 transition-all cursor-pointer group focus:ring-2 focus:ring-primary outline-none"
                 >
                   <div className="flex items-start justify-between mb-2">
                     <h4 className="font-black text-secondary group-hover:text-primary transition-colors">{rx.diagnosis}</h4>
@@ -208,6 +202,15 @@ export default function PatientDashboard() {
                   <p className="text-xs font-medium text-medical-text-light">
                     Dr. {rx.doctorId?.userId?.name || "Clinician"} • {rx.doctorId?.specialty || "Specialist"}
                   </p>
+                  
+                  {/* Extensible attachment info */}
+                  {rx.pdfs && rx.pdfs.length > 0 && (
+                    <div className="mt-2.5 flex items-center gap-1.5 text-[10px] text-primary font-bold uppercase tracking-wider">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                      <span>{rx.pdfs.length} PDF Document{rx.pdfs.length > 1 ? 's' : ''} Attached</span>
+                    </div>
+                  )}
+
                   {rx.medicines && rx.medicines.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {rx.medicines.slice(0, 3).map((med, idx) => (
@@ -224,6 +227,29 @@ export default function PatientDashboard() {
                   )}
                 </div>
               ))
+            )}
+
+            {/* Pagination Controls */}
+            {recordsTotalPages > 1 && (
+              <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                <button
+                  disabled={recordsPage === 1}
+                  onClick={() => setRecordsPage(recordsPage - 1)}
+                  className="px-4 py-2 rounded-xl border border-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:bg-slate-50 transition-all disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Page {recordsPage} of {recordsTotalPages}
+                </span>
+                <button
+                  disabled={recordsPage === recordsTotalPages}
+                  onClick={() => setRecordsPage(recordsPage + 1)}
+                  className="px-4 py-2 rounded-xl border border-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:bg-slate-50 transition-all disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
             )}
           </div>
         </DashboardWidget>
@@ -407,6 +433,30 @@ export default function PatientDashboard() {
                 <div className="p-4 rounded-2xl bg-amber-50/30 border border-amber-100/50">
                   <span className="text-[9px] font-black text-amber-600 uppercase tracking-widest block">Additional Notes</span>
                   <p className="text-xs font-semibold text-slate-700 mt-1 whitespace-pre-wrap leading-relaxed">{selectedRx.notes}</p>
+                </div>
+              )}
+
+              {/* Attached PDFs */}
+              {selectedRx.pdfs && selectedRx.pdfs.length > 0 && (
+                <div className="p-4 rounded-2xl bg-blue-50/30 border border-blue-100/50 space-y-2">
+                  <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest block">Attached Documents</span>
+                  <div className="space-y-2">
+                    {selectedRx.pdfs.map((pdf, idx) => (
+                      <a 
+                        key={idx}
+                        href={pdf.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 hover:shadow-md transition-all text-xs font-bold text-slate-700 focus:outline-none"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center font-black text-[10px]">PDF</div>
+                          <span className="truncate max-w-[200px]">{pdf.name}</span>
+                        </div>
+                        <span className="text-[10px] font-black text-primary uppercase tracking-widest shrink-0">Download</span>
+                      </a>
+                    ))}
+                  </div>
                 </div>
               )}
 

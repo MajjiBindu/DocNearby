@@ -90,6 +90,13 @@ export const prescriptionApi = {
   byAppointment: (appointmentId) => unwrap(api.get(`/prescriptions/appointment/${appointmentId}`)),
 };
 
+export const medicalRecordApi = {
+  create: (payload) => unwrap(api.post("/medical-records", payload)),
+  patient: (params) => unwrap(api.get("/medical-records/patient", { params })),
+  doctorPatient: (patientId, params) => unwrap(api.get(`/medical-records/doctor/patient/${patientId}`, { params })),
+  get: (id) => unwrap(api.get(`/medical-records/${id}`)),
+};
+
 export const symptomApi = {
   suggest: (symptoms) => unwrap(api.post("/symptoms/suggest", { symptoms })),
 };
