@@ -3,6 +3,7 @@ import { memo, useState, useEffect } from "react";
 import Modal from "../common/Modal.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { reviewApi } from "../../services/api.js";
+import AppointmentTimeline from "./AppointmentTimeline.jsx";
 
 const AppointmentCard = memo(({ appt, onCancel, onComplete }) => {
   const isPending = appt?.status === 'pending';
@@ -24,7 +25,7 @@ const AppointmentCard = memo(({ appt, onCancel, onComplete }) => {
     let active = true;
     const doctorId = appt?.doctorId?._id;
     const userId = user?._id || user?.id;
-    const isCompleted = appt?.status === 'completed';
+    const isCompleted = appt?.status === 'completed' || appt?.status === 'prescription_shared';
     const isPatient = user?.role === 'patient';
 
     if (isCompleted && doctorId && userId && isPatient) {
@@ -85,7 +86,7 @@ const AppointmentCard = memo(({ appt, onCancel, onComplete }) => {
     }
   };
 
-  const showLeaveReview = appt?.status === 'completed' && user?.role === 'patient';
+  const showLeaveReview = (appt?.status === 'completed' || appt?.status === 'prescription_shared') && user?.role === 'patient';
 
   return (
     <article className="rounded-xl border bg-white p-4 md:p-6 shadow-sm focus-within:ring-2 focus-within:ring-primary outline-none">
@@ -102,17 +103,8 @@ const AppointmentCard = memo(({ appt, onCancel, onComplete }) => {
             {appt?.clinicId?.name || "Clinic"}
           </address>
         </div>
-        <span 
-          className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-widest self-start ${
-            appt?.status === 'confirmed' ? 'bg-emerald-50 text-emerald-600' : 
-            appt?.status === 'pending' ? 'bg-amber-50 text-amber-600' : 
-            appt?.status === 'cancelled' ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-400'
-          }`}
-          role="status"
-        >
-          {appt?.status}
-        </span>
       </div>
+      <AppointmentTimeline status={appt?.status} />
       <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:gap-2">
         {onCancel ? (
           <button

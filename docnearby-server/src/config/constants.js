@@ -2,7 +2,16 @@ export const ROLES = ['patient', 'doctor', 'admin']
 
 export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-export const APPOINTMENT_STATUSES = ['pending', 'confirmed', 'cancelled', 'completed']
+export const APPOINTMENT_STATUSES = [
+  'pending',
+  'booked',
+  'confirmed',
+  'arrived',
+  'in_consultation',
+  'completed',
+  'prescription_shared',
+  'cancelled'
+]
 
 export const SPECIALTIES = [
   'General Physician',

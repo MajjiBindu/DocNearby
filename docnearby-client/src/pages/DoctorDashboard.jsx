@@ -155,8 +155,12 @@ export default function DoctorDashboard() {
     
     const counts = {
       pending: 0,
+      booked: 0,
       confirmed: 0,
+      arrived: 0,
+      in_consultation: 0,
       completed: 0,
+      prescription_shared: 0,
       cancelled: 0
     };
 
@@ -169,9 +173,11 @@ export default function DoctorDashboard() {
     });
 
     return [
-      { name: "Pending", value: counts.pending, color: "#F59E0B" },
+      { name: "Pending", value: counts.pending + counts.booked, color: "#F59E0B" },
       { name: "Confirmed", value: counts.confirmed, color: "#10B981" },
-      { name: "Completed", value: counts.completed, color: "#0F6CBD" },
+      { name: "Arrived", value: counts.arrived, color: "#8B5CF6" },
+      { name: "In Consultation", value: counts.in_consultation, color: "#3B82F6" },
+      { name: "Completed", value: counts.completed + counts.prescription_shared, color: "#0F6CBD" },
       { name: "Cancelled", value: counts.cancelled, color: "#EF4444" }
     ].filter(item => item.value > 0);
   }, [appointments]);
@@ -188,7 +194,7 @@ export default function DoctorDashboard() {
     if (!Array.isArray(appointments) || appointments.length === 0) return stats;
 
     const totalCount = appointments.length;
-    const completedList = appointments.filter(a => a && a.status === "completed");
+    const completedList = appointments.filter(a => a && (a.status === "completed" || a.status === "prescription_shared"));
     stats.completedCount = completedList.length;
     stats.totalRevenue = stats.completedCount * stats.avgFee;
     stats.completionRate = totalCount > 0 ? Math.round((stats.completedCount / totalCount) * 100) : 0;
@@ -262,16 +268,44 @@ export default function DoctorDashboard() {
                     </td>
                     <td className="py-4">
                       <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
-                        a.status === 'confirmed' ? 'bg-emerald-50 text-emerald-600' : 
-                        a.status === 'pending' ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'
+                        (a.status === 'confirmed') ? 'bg-emerald-50 text-emerald-600' : 
+                        (a.status === 'pending' || a.status === 'booked') ? 'bg-amber-50 text-amber-600' : 
+                        (a.status === 'arrived') ? 'bg-indigo-50 text-indigo-600' : 
+                        (a.status === 'in_consultation') ? 'bg-blue-50 text-blue-600' : 
+                        (a.status === 'completed') ? 'bg-teal-50 text-teal-600' : 
+                        (a.status === 'prescription_shared') ? 'bg-emerald-100 text-emerald-800' : 
+                        (a.status === 'cancelled') ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-400'
                       }`} aria-label={`Appointment status: ${a.status}`}>
-                        {a.status}
+                        {a.status === 'prescription_shared' ? 'prescription shared' : a.status}
                       </span>
                     </td>
                     <td className="py-4 text-right">
                       <div className="flex justify-end gap-2">
-                        {a.status === 'pending' && <button onClick={() => handleStatusUpdate(a._id, 'confirmed')} className="px-3 py-1.5 rounded-xl bg-primary text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-primary/20 focus-visible:ring-offset-2" aria-label={`Confirm appointment for ${a.patientId?.name || 'patient'}`}>Confirm</button>}
-                        {a.status === 'confirmed' && <button onClick={() => handleStatusUpdate(a._id, 'completed')} className="px-3 py-1.5 rounded-xl bg-emerald-500 text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-emerald-200 focus-visible:ring-offset-2" aria-label={`Mark appointment for ${a.patientId?.name || 'patient'} as completed`}>Complete</button>}
+                        {(a.status === 'pending' || a.status === 'booked') && (
+                          <button onClick={() => handleStatusUpdate(a._id, 'confirmed')} className="px-3 py-1.5 rounded-xl bg-primary text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-primary/20 focus-visible:ring-offset-2" aria-label={`Confirm appointment for ${a.patientId?.name || 'patient'}`}>
+                            Confirm
+                          </button>
+                        )}
+                        {a.status === 'confirmed' && (
+                          <button onClick={() => handleStatusUpdate(a._id, 'arrived')} className="px-3 py-1.5 rounded-xl bg-indigo-600 text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-indigo-200 focus-visible:ring-offset-2" aria-label={`Mark ${a.patientId?.name || 'patient'} as arrived`}>
+                            Arrived
+                          </button>
+                        )}
+                        {a.status === 'arrived' && (
+                          <button onClick={() => handleStatusUpdate(a._id, 'in_consultation')} className="px-3 py-1.5 rounded-xl bg-blue-600 text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-blue-200 focus-visible:ring-offset-2" aria-label={`Start consultation with ${a.patientId?.name || 'patient'}`}>
+                            Start Consult
+                          </button>
+                        )}
+                        {a.status === 'in_consultation' && (
+                          <button onClick={() => handleStatusUpdate(a._id, 'completed')} className="px-3 py-1.5 rounded-xl bg-emerald-500 text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-emerald-200 focus-visible:ring-offset-2" aria-label={`Mark appointment for ${a.patientId?.name || 'patient'} as completed`}>
+                            Complete
+                          </button>
+                        )}
+                        {a.status === 'completed' && (
+                          <button onClick={() => handleStatusUpdate(a._id, 'prescription_shared')} className="px-3 py-1.5 rounded-xl bg-teal-500 text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-teal-200 focus-visible:ring-offset-2" aria-label={`Share prescription with ${a.patientId?.name || 'patient'}`}>
+                            Share Prescr.
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

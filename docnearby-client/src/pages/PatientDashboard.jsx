@@ -48,8 +48,18 @@ export default function PatientDashboard() {
     return new Date(`${dateStr}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`);
   };
 
-  const upcoming = appointments.filter((a) => a.status !== "cancelled" && toDateTime(a) > now);
-  const past = appointments.filter((a) => a.status === "completed" || a.status === "cancelled" || toDateTime(a) <= now);
+  const upcoming = appointments.filter((a) => 
+    a.status !== "cancelled" && 
+    a.status !== "completed" && 
+    a.status !== "prescription_shared" && 
+    toDateTime(a) > now
+  );
+  const past = appointments.filter((a) => 
+    a.status === "completed" || 
+    a.status === "prescription_shared" || 
+    a.status === "cancelled" || 
+    toDateTime(a) <= now
+  );
 
   const stats = {
     total: appointments.length,
