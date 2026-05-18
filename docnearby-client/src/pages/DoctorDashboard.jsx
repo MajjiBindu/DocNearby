@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import SEO from "../components/common/SEO.jsx";
-import { appointmentApi, doctorApi } from "../services/api.js";
+import { appointmentApi, doctorApi, clinicApi } from "../services/api.js";
 import { LANGUAGES, SPECIALTIES } from "../utils/constants.js";
 import translations from "../utils/i18n.js";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
@@ -12,6 +12,7 @@ export default function DoctorDashboard() {
   const [error, setError] = useState("");
   const [appointments, setAppointments] = useState([]);
   const [doctor, setDoctor] = useState(null);
+  const [clinics, setClinics] = useState([]);
   const [activeTab, setActiveTab] = useState("schedule");
   const [availabilityRows, setAvailabilityRows] = useState([]);
   const [profileForm, setProfileForm] = useState({
@@ -19,6 +20,7 @@ export default function DoctorDashboard() {
     experience: "",
     consultationFee: "",
     languages: [],
+    clinicId: "",
   });
   
   const [savingProfile, setSavingProfile] = useState(false);
@@ -34,9 +36,10 @@ export default function DoctorDashboard() {
     // Defer loading state to avoid cascading render warning
     Promise.resolve().then(() => setLoading(true));
     try {
-      const [apptRes, doctorRes] = await Promise.all([
+      const [apptRes, doctorRes, clinicRes] = await Promise.all([
         appointmentApi.doctor(),
-        doctorApi.me()
+        doctorApi.me(),
+        clinicApi.list()
       ]);
       
       const apptList = Array.isArray(apptRes) ? apptRes : (apptRes?.appointments ?? []);
@@ -45,12 +48,16 @@ export default function DoctorDashboard() {
       const docData = doctorRes.data?.doctor || null;
       setDoctor(docData);
 
+      const clinicList = clinicRes.success ? (clinicRes.data?.clinics || []) : [];
+      setClinics(clinicList);
+
       if (docData) {
         setProfileForm({
           specialty: docData.specialty || "",
           experience: docData.experience != null ? String(docData.experience) : "",
           consultationFee: docData.consultationFee != null ? String(docData.consultationFee) : "",
           languages: docData.languages || [],
+          clinicId: docData.clinicId?._id || docData.clinicId || "",
         });
         
         const initialRows = (docData.availableSlots || []).map((slot) => ({
@@ -224,6 +231,15 @@ export default function DoctorDashboard() {
                  <label htmlFor="prof-specialty" className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Specialty</label>
                  <select id="prof-specialty" value={profileForm.specialty} onChange={(e) => setProfileForm({...profileForm, specialty: e.target.value})} className="medical-input !py-2.5 !text-xs focus:ring-primary">
                    {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
+                 </select>
+               </div>
+               <div className="space-y-1">
+                 <label htmlFor="prof-clinic" className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Clinic Affiliation</label>
+                 <select id="prof-clinic" value={profileForm.clinicId || ""} onChange={(e) => setProfileForm({...profileForm, clinicId: e.target.value})} className="medical-input !py-2.5 !text-xs focus:ring-primary">
+                   <option value="">Independent / None</option>
+                   {clinics.map(c => (
+                     <option key={c._id} value={c._id}>{c.name} ({c.city})</option>
+                   ))}
                  </select>
                </div>
                <div className="space-y-1">

@@ -7,19 +7,34 @@ import { Appointment } from '../models/Appointment.js';
 import AppError from '../utils/AppError.js';
 import { SPECIALTIES } from '../config/constants.js';
 
-export const geocodeAddress = async (address) => {
+export const geocodeAddress = async (address, retries = 3, delayMs = 1000) => {
   if (!address) return null;
-  try {
-    const res = await axios.get("https://nominatim.openstreetmap.org/search", {
-      params: { format: "json", q: address, limit: 1 },
-      headers: { "User-Agent": "DocNearby/1.0" },
-    });
-    if (res.data && res.data[0]) {
-      const { lat, lon } = res.data[0];
-      return { type: "Point", coordinates: [parseFloat(lon), parseFloat(lat)] };
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`Geocoding attempt ${attempt} for address: "${address}"`);
+      const res = await axios.get("https://nominatim.openstreetmap.org/search", {
+        params: { format: "json", q: address, limit: 1 },
+        headers: { 
+          "User-Agent": "DocNearby/1.0 (bindumadhavi6281@gmail.com)",
+          "Accept-Language": "en"
+        },
+        timeout: 5000,
+      });
+      if (res.data && res.data[0]) {
+        const { lat, lon } = res.data[0];
+        console.log(`Geocoding success for "${address}": [${lon}, ${lat}]`);
+        return { type: "Point", coordinates: [parseFloat(lon), parseFloat(lat)] };
+      }
+      console.warn(`Geocoding attempt ${attempt} returned no results for "${address}"`);
+      break; // No retry needed if OpenStreetMap returned 200 OK with no results
+    } catch (error) {
+      console.error(`Geocoding attempt ${attempt} failed for "${address}": ${error.message}`);
+      if (attempt < retries) {
+        console.log(`Waiting ${delayMs}ms before retrying...`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        delayMs *= 2; // exponential backoff
+      }
     }
-  } catch (error) {
-    console.error(`Geocoding failed: ${error.message}`);
   }
   return null;
 };
@@ -116,13 +131,17 @@ export const update = async (id, data, user) => {
 
   if (data.availableSlots) {
     const slotsToGeocode = doctor.availableSlots.filter(
-      (s) => s.location && (!s.coordinates || !s.coordinates.coordinates),
+      (s) => s.location && (!s.coordinates || !s.coordinates.coordinates || s.coordinates.coordinates.length === 0),
     );
     if (slotsToGeocode.length > 0) {
-      await Promise.all(slotsToGeocode.map(async (s) => {
+      // Execute geocoding sequentially with a delay to respect Nominatim limits
+      for (const s of slotsToGeocode) {
         const coords = await geocodeAddress(s.location);
-        if (coords) s.coordinates = coords;
-      }));
+        if (coords) {
+          s.coordinates = coords;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
     }
 
     // strip any slot that still has incomplete coordinates
@@ -148,26 +167,19 @@ export const globalSearch = async (params) => {
 
   if (q) {
     const regex = new RegExp(q, "i");
-    const users = await User.find({ name: regex, role: "doctor" }).select("_id");
-    const clinics = await Clinic.find({ name: regex }).select("_id");
+    const [users, clinics] = await Promise.all([
+      User.find({ name: regex, role: "doctor" }).select("_id"),
+      Clinic.find({ name: regex }).select("_id")
+    ]);
 
-    filterObj.$or = [
-      { specialty: regex },
-      { userId: { $in: users.map(u => u._id) } },
-      { clinicId: { $in: clinics.map(c => c._id) } }
-    ];
-  }
-
-  if (lat && lng) {
-    const nearbyClinics = await Clinic.find({
-      location: {
-        $near: {
-          $geometry: { type: "Point", coordinates: [Number(lng), Number(lat)] },
-          $maxDistance: Number(radius),
-        },
-      },
-    }).select("_id");
-    filterObj.clinicId = { $in: nearbyClinics.map(c => c._id) };
+    const orClauses = [{ specialty: regex }];
+    if (users.length > 0) {
+      orClauses.push({ userId: { $in: users.map(u => u._id) } });
+    }
+    if (clinics.length > 0) {
+      orClauses.push({ clinicId: { $in: clinics.map(c => c._id) } });
+    }
+    filterObj.$or = orClauses;
   }
 
   let sortObj = { rating: -1 };
@@ -175,12 +187,81 @@ export const globalSearch = async (params) => {
   else if (sort === "fee_desc") sortObj = { consultationFee: -1 };
   else if (sort === "experience_desc") sortObj = { experience: -1 };
 
-  return await Doctor.find(filterObj)
-    .populate("userId", "name email role")
-    .populate("clinicId", "name address city location")
-    .select("specialty consultationFee experience rating reviewCount isVerified")
-    .sort(sortObj)
-    .limit(50);
+  // Fallback: If no lat/lng is provided by the client, return all matched doctors directly
+  if (!lat || !lng) {
+    return await Doctor.find(filterObj)
+      .populate("userId", "name email role")
+      .populate("clinicId", "name address city location")
+      .select("specialty consultationFee experience rating reviewCount isVerified")
+      .sort(sortObj)
+      .limit(50);
+  }
+
+  // Geospatial Search: Find nearby clinics within radius
+  const nearbyClinics = await Clinic.find({
+    location: {
+      $near: {
+        $geometry: { type: "Point", coordinates: [Number(lng), Number(lat)] },
+        $maxDistance: Number(radius),
+      },
+    },
+  }).select("_id");
+  const nearbyClinicIds = nearbyClinics.map(c => c._id);
+
+  // Run in-memory merging to bypass the Mongo restriction: $near is not allowed in compound $or
+  const [clinicDoctors, slotDoctors, fallbackDoctors] = await Promise.all([
+    // 1. Doctors associated with nearby clinics
+    nearbyClinicIds.length > 0
+      ? Doctor.find({
+          ...filterObj,
+          clinicId: { $in: nearbyClinicIds },
+        })
+          .populate("userId", "name email role")
+          .populate("clinicId", "name address city location")
+          .select("specialty consultationFee experience rating reviewCount isVerified")
+          .sort(sortObj)
+          .limit(50)
+      : [],
+
+    // 2. Doctors with slots having coordinates near [lng, lat]
+    Doctor.find({
+      ...filterObj,
+      "availableSlots.coordinates": {
+        $near: {
+          $geometry: { type: "Point", coordinates: [Number(lng), Number(lat)] },
+          $maxDistance: Number(radius),
+        },
+      },
+    })
+      .populate("userId", "name email role")
+      .populate("clinicId", "name address city location")
+      .select("specialty consultationFee experience rating reviewCount isVerified")
+      .sort(sortObj)
+      .limit(50),
+
+    // 3. Fallback: Doctors with slots but NO clinicId and NO slot coordinates
+    Doctor.find({
+      ...filterObj,
+      clinicId: { $exists: false },
+      "availableSlots.coordinates": { $exists: false },
+      "availableSlots.0": { $exists: true },
+    })
+      .populate("userId", "name email role")
+      .populate("clinicId", "name address city location")
+      .select("specialty consultationFee experience rating reviewCount isVerified")
+      .sort(sortObj)
+      .limit(50),
+  ]);
+
+  const allResults = [...clinicDoctors, ...slotDoctors, ...fallbackDoctors];
+  const seenIds = new Set();
+  const deduplicated = allResults.filter((d) => {
+    if (seenIds.has(String(d._id))) return false;
+    seenIds.add(String(d._id));
+    return true;
+  });
+
+  return deduplicated.slice(0, 50);
 };
 
 export const getAutocompleteSuggestions = async (q) => {
