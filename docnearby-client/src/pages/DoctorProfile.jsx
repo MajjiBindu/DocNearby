@@ -1,9 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import SEO from "../components/common/SEO.jsx";
 import { doctorApi, reviewApi } from "../services/api.js";
 import { useAuth } from "../context/useAuth.js";
 import translations from "../utils/i18n.js";
+
+const formatReviewDate = (d) => {
+  const date = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-IN", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+};
 
 export default function DoctorProfile() {
   const { id } = useParams();
@@ -34,7 +44,7 @@ export default function DoctorProfile() {
   const t = translations[lang];
   const doctorId = doctor?._id || id;
 
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     setFetchingReviews(true);
     try {
       const res = await reviewApi.byDoctor(id);
@@ -44,7 +54,7 @@ export default function DoctorProfile() {
     } finally {
       setFetchingReviews(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,7 +77,7 @@ export default function DoctorProfile() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, fetchReviews]);
 
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
@@ -127,13 +137,21 @@ export default function DoctorProfile() {
     );
   };
 
-  const formatReviewDate = (dateStr) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString(
-      lang === "en" ? "en-US" : lang === "hi" ? "hi-IN" : "te-IN",
-      { month: "short", day: "numeric", year: "numeric" },
-    );
-  };
+  const totalReviews = reviews?.length || 0;
+  const avgRating = totalReviews > 0
+    ? Number((reviews.reduce((acc, r) => acc + (r?.rating || 0), 0) / totalReviews).toFixed(1))
+    : 0;
+
+  // Star breakdown counts
+  const starCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+  if (Array.isArray(reviews)) {
+    reviews.forEach((r) => {
+      const rating = r?.rating;
+      if (rating >= 1 && rating <= 5) {
+        starCounts[rating]++;
+      }
+    });
+  }
 
   return (
     <main
@@ -162,11 +180,11 @@ export default function DoctorProfile() {
                     }
                   : undefined,
                 aggregateRating:
-                  reviews.length > 0
+                  totalReviews > 0
                     ? {
                         "@type": "AggregateRating",
-                        ratingValue: doctor.rating,
-                        reviewCount: reviews.length,
+                        ratingValue: avgRating,
+                        reviewCount: totalReviews,
                       }
                     : undefined,
               }
@@ -382,29 +400,56 @@ export default function DoctorProfile() {
                 aria-labelledby="reviews-heading"
               >
                 <div className="medical-card p-8">
-                  <div className="flex items-center justify-between mb-10 pb-6 border-b border-slate-50">
+                  <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-100">
                     <h2
                       id="reviews-heading"
-                      className="text-2xl font-extrabold text-secondary tracking-tight"
+                      className="text-2xl font-black text-secondary tracking-tight"
                     >
                       {t.patientReviews}
                     </h2>
-                    {reviews.length > 0 && (
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <p className="text-sm font-black text-secondary">
-                            {doctor.rating?.toFixed(1) || "0.0"}
-                          </p>
-                          <p className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">
-                            {reviews.length} Total
-                          </p>
-                        </div>
-                        <div className="bg-primary/10 p-2 rounded-xl text-primary">
-                          {renderStars(doctor.rating, "lg")}
-                        </div>
-                      </div>
-                    )}
                   </div>
+
+                  {/* Premium Summary and Star Breakdown */}
+                  {totalReviews > 0 && !fetchingReviews && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 p-6 mb-10 rounded-2xl bg-slate-50 border border-slate-100 animate-in fade-in duration-300">
+                      {/* Left: Overall Rating */}
+                      <div className="flex flex-col items-center justify-center text-center p-4 border-b md:border-b-0 md:border-r border-slate-200/60">
+                        <p className="text-5xl font-black text-secondary mb-1">
+                          {avgRating.toFixed(1)}
+                        </p>
+                        <div className="mb-2">
+                          {renderStars(avgRating, "lg")}
+                        </div>
+                        <p className="text-sm font-bold text-medical-text-light">
+                          Based on {totalReviews} patient {totalReviews === 1 ? 'review' : 'reviews'}
+                        </p>
+                      </div>
+
+                      {/* Right: Star Breakdown Bars */}
+                      <div className="col-span-1 md:col-span-2 flex flex-col justify-center space-y-2.5">
+                        {[5, 4, 3, 2, 1].map((star) => {
+                          const count = starCounts[star] || 0;
+                          const pct = totalReviews > 0 ? Math.round((count / totalReviews) * 100) : 0;
+                          return (
+                            <div key={star} className="flex items-center gap-4">
+                              <span className="text-sm font-bold text-secondary w-14 whitespace-nowrap">
+                                {star} {star === 1 ? 'star' : 'stars'}
+                              </span>
+                              <div className="flex-1 h-3 rounded-full bg-slate-200/80 overflow-hidden relative shadow-inner">
+                                <div
+                                  className="absolute top-0 left-0 h-full rounded-full bg-primary shadow-sm transition-all duration-500 ease-out"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                              <span className="text-sm font-bold text-medical-text-light w-10 text-right">
+                                {pct}%
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {fetchingReviews ? (
                     <div
@@ -416,7 +461,7 @@ export default function DoctorProfile() {
                         aria-hidden="true"
                       ></div>
                     </div>
-                  ) : reviews.length === 0 ? (
+                  ) : totalReviews === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
                       <div
                         className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-200"
@@ -442,39 +487,66 @@ export default function DoctorProfile() {
                     </div>
                   ) : (
                     <div className="space-y-8" role="list">
-                      {reviews.map((r) => (
-                        <article
-                          key={r._id}
-                          role="listitem"
-                          className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-4 hover:border-primary transition-all"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div className="flex items-center gap-4">
-                              <div
-                                className="w-12 h-12 rounded-xl bg-secondary text-white flex items-center justify-center font-black text-xl"
-                                aria-hidden="true"
+                      {reviews.map((r) => {
+                        if (!r) return null;
+                        return (
+                          <article
+                            key={r._id}
+                            role="listitem"
+                            className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-4 hover:border-primary transition-all"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex items-center gap-4">
+                                <div
+                                  className="w-12 h-12 rounded-xl bg-secondary text-white flex items-center justify-center font-black text-xl"
+                                  aria-hidden="true"
+                                >
+                                  {(r.patientId?.name || "P").charAt(0)}
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="font-extrabold text-secondary">
+                                      {r.patientId?.name || "Patient"}
+                                    </p>
+                                    {r.isVerified && (
+                                      <span
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-black uppercase tracking-wider"
+                                        role="status"
+                                      >
+                                        <svg
+                                          className="w-3 h-3 text-emerald-600"
+                                          fill="none"
+                                          viewBox="0 0 24 24"
+                                          stroke="currentColor"
+                                          aria-hidden="true"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={3}
+                                            d="M5 13l4 4L19 7"
+                                          />
+                                        </svg>
+                                        {t.verifiedPatient || "Verified Patient"}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {renderStars(r.rating || 0)}
+                                </div>
+                              </div>
+                              <time
+                                dateTime={r.createdAt}
+                                className="text-[10px] font-black text-medical-text-light uppercase tracking-widest"
                               >
-                                {(r.patientId?.name || "P").charAt(0)}
-                              </div>
-                              <div>
-                                <p className="font-extrabold text-secondary">
-                                  {r.patientId?.name || "Patient"}
-                                </p>
-                                {renderStars(r.rating)}
-                              </div>
+                                {formatReviewDate(r.createdAt)}
+                              </time>
                             </div>
-                            <time
-                              dateTime={r.createdAt}
-                              className="text-[10px] font-black text-medical-text-light uppercase tracking-widest"
-                            >
-                              {formatReviewDate(r.createdAt)}
-                            </time>
-                          </div>
-                          <blockquote className="text-medical-text text-sm leading-relaxed font-medium italic">
-                            "{r.comment}"
-                          </blockquote>
-                        </article>
-                      ))}
+                            <blockquote className="text-medical-text text-sm leading-relaxed font-medium italic">
+                              "{r.comment ?? ""}"
+                            </blockquote>
+                          </article>
+                        );
+                      })}
                     </div>
                   )}
 

@@ -34,6 +34,7 @@ const translations = {
     loadingSchedule: 'Loading your schedule...',
     notSure: 'Not sure which doctor to choose?',
     describeSymptoms: "Describe your symptoms and we'll suggest a specialist for you.",
+    verifiedPatient: 'Verified Patient',
   },
   hi: {
     brand: 'डॉकनियरबाय',
@@ -70,6 +71,7 @@ const translations = {
     loadingSchedule: 'आपका शेड्यूल लोड हो रहा है...',
     notSure: 'पता नहीं कौन सा डॉक्टर चुनें?',
     describeSymptoms: 'अपने लक्षण बताएं और हम आपके लिए विशेषज्ञ का सुझाव देंगे।',
+    verifiedPatient: 'सत्यापित मरीज',
   },
   te: {
     brand: 'డాక్నియర్బై',
@@ -106,6 +108,7 @@ const translations = {
     loadingSchedule: 'మీ షెడ్యూల్‌ను లోడ్ చేస్తోంది...',
     notSure: 'ఏ డాక్టర్‌ని ఎంచుకోవాలో తెలియదా?',
     describeSymptoms: 'మీ లక్షణాలను వివరించండి మరియు మేము నిపుణుడిని సూచిస్తాము.',
+    verifiedPatient: 'ధృవీకరించబడిన రోగి',
   },
 }
 

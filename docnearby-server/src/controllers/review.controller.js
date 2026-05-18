@@ -1,5 +1,6 @@
 import { Review } from '../models/Review.js';
 import { Doctor } from '../models/Doctor.js';
+import { Appointment } from '../models/Appointment.js';
 import mongoose from 'mongoose';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { sendResponse } from '../utils/response.js';
@@ -62,5 +63,31 @@ export const getDoctorReviews = asyncHandler(async (req, res) => {
     .populate('patientId', 'name')
     .sort({ createdAt: -1 });
 
-  return sendResponse(res, 200, "Reviews fetched", { reviews });
+  // Add defensive null check and filter out missing patient IDs
+  const patientIds = reviews
+    .map(r => r.patientId?._id)
+    .filter(id => id !== undefined && id !== null);
+
+  // Fetch completed appointments for this doctor and these patients
+  const completedAppointments = await Appointment.find({
+    doctorId,
+    patientId: { $in: patientIds },
+    status: 'completed',
+  });
+
+  const verifiedPatientIds = new Set(
+    completedAppointments.map(app => app.patientId.toString())
+  );
+
+  const reviewsWithVerified = reviews.map(r => {
+    const isVerified = r.patientId
+      ? verifiedPatientIds.has(r.patientId._id.toString())
+      : false;
+    return {
+      ...r.toObject(),
+      isVerified,
+    };
+  });
+
+  return sendResponse(res, 200, "Reviews fetched", { reviews: reviewsWithVerified });
 });

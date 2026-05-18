@@ -388,3 +388,23 @@
 {"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 17:19:04"}
 {"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 17:19:05"}
 {"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 17:19:05"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 18:58:06"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 18:58:07"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 18:58:07"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 18:58:48"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 18:58:49"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 18:58:49"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 18:59:29"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 18:59:30"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 18:59:30"}
+{"level":"warn","message":"\"comment\" is not allowed to be empty","method":"POST","service":"docnearby-api","status":400,"timestamp":"2026-05-18 19:00:23","url":"/api/reviews"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 19:07:17"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 19:07:18"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 19:07:18"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 19:07:22"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 19:07:24"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 19:07:25"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 19:07:25"}
+{"level":"warn","message":"Comment must be at least 5 characters","method":"POST","service":"docnearby-api","status":400,"timestamp":"2026-05-18 19:08:32","url":"/api/reviews"}
+{"level":"warn","message":"You have already reviewed this doctor","method":"POST","service":"docnearby-api","status":409,"timestamp":"2026-05-18 19:08:47","url":"/api/reviews"}
+{"level":"warn","message":"\"clinicId\" is not allowed to be empty","method":"PUT","service":"docnearby-api","status":400,"timestamp":"2026-05-18 19:10:12","url":"/api/doctors/6a0ae6579f26b242bcabaddf"}
