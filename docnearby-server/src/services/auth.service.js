@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
@@ -47,7 +48,7 @@ export const createPasswordResetToken = async (email) => {
     .createHash("sha256")
     .update(resetToken)
     .digest("hex");
-  user.passwordResetExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+  user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
   await user.save({ validateBeforeSave: false });
   return resetToken;
@@ -61,11 +62,10 @@ export const getUserByPasswordResetToken = async (token) => {
     .update(token)
     .digest("hex");
 
-  const now = new Date();
-
   return await User.findOne({
     passwordResetToken: hashedToken,
-  }).where("passwordResetExpires").gt(now);  // ← use .where().gt() instead of $gt in filter
+    passwordResetExpires: mongoose.trusted({ $gt: new Date() }),
+  });
 };
 export const resetPassword = async (user, password) => {
   if (!user)

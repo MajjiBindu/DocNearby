@@ -24,15 +24,13 @@ import { authLimiter } from "../middleware/rateLimiter.js";
 
 const router = Router();
 
-// Apply rate limiting to all auth routes
-router.use(authLimiter);
-
-router.post("/signup/request-otp", validate(signupSchema), requestSignupOtp);
-router.post("/signup/verify-otp", validate(otpSchema), verifySignupOtp);
-router.post("/login/request-otp", validate(loginSchema), requestLoginOtp);
-router.post("/login/verify-otp", validate(otpSchema), verifyLoginOtp);
+router.post("/signup/request-otp", authLimiter, validate(signupSchema), requestSignupOtp);
+router.post("/signup/verify-otp", authLimiter, validate(otpSchema), verifySignupOtp);
+router.post("/login/request-otp", authLimiter, validate(loginSchema), requestLoginOtp);
+router.post("/login/verify-otp", authLimiter, validate(otpSchema), verifyLoginOtp);
 router.post(
   "/forgot-password",
+  authLimiter,
   validate(forgotPasswordSchema),
   requestPasswordReset,
 );
@@ -42,14 +40,14 @@ router.post(
   resetPassword,
 );
 router.get("/reset-password/:token", validateResetToken);
-router.post("/resend-otp", resendOtp);
+router.post("/resend-otp", authLimiter, resendOtp);
 
-router.post("/signup/resend-otp", (req, res, next) => {
+router.post("/signup/resend-otp", authLimiter, (req, res, next) => {
   req.body = { ...req.body, purpose: "signup" };
   return resendOtp(req, res, next);
 });
 
-router.post("/login/resend-otp", (req, res, next) => {
+router.post("/login/resend-otp", authLimiter, (req, res, next) => {
   req.body = { ...req.body, purpose: "login" };
   return resendOtp(req, res, next);
 });

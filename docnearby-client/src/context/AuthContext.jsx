@@ -59,9 +59,14 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!isInitialized) {
       const init = async () => {
-        await refreshMe();
+        const savedToken = localStorage.getItem("dn_token");
+        if (savedToken) {
+          setToken(savedToken);   // restore token into state first
+          await refreshMe();
+        } else {
+          setIsInitialized(true); // nothing to restore, mark done
+        }
       };
-
       init();
     }
   }, [refreshMe, isInitialized]);
