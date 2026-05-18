@@ -8,13 +8,17 @@ export const create = async (patientData, appointmentData) => {
   const patientId = patientData.userId;
 
   const start = new Date(`${date}T00:00:00.000`);
+  if (isNaN(start.getTime())) {
+    throw new AppError('Invalid date format. Use YYYY-MM-DD.', 400, 'invalid_date');
+  }
   const end = new Date(start);
   end.setDate(end.getDate() + 1);
 
   const doctor = await Doctor.findById(doctorId);
   if (!doctor) throw new AppError('Doctor not found', 404);
 
-  const appointmentDay = new Date(date).toLocaleDateString("en-US", { weekday: "short" });
+  const [yyyy, mm, dd] = date.split("-").map(Number);
+  const appointmentDay = new Date(yyyy, mm - 1, dd).toLocaleDateString("en-US", { weekday: "short" });
   const selectedSlot = doctor.availableSlots?.find(s => s.day === appointmentDay);
   const hasSlotLocation = selectedSlot?.clinicName || selectedSlot?.location;
 

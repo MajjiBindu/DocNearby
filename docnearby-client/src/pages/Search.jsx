@@ -46,6 +46,18 @@ export default function Search() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = useRef(null);
 
+  const resultGrid = useMemo(() => (
+    <div
+      className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3 animate-in fade-in slide-in-from-bottom-4 duration-700"
+      role="list"
+      aria-label="Clinician search results"
+    >
+      {results.map((d) => (
+        <DoctorCard key={d._id} doctor={d} />
+      ))}
+    </div>
+  ), [results]);
+
   // Sync specialty from URL
   useEffect(() => {
     const s = sp.get("specialty");
@@ -418,17 +430,7 @@ export default function Search() {
                 </button>
               </div>
             ) : (
-              useMemo(() => (
-                <div 
-                  className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3 animate-in fade-in slide-in-from-bottom-4 duration-700"
-                  role="list"
-                  aria-label="Clinician search results"
-                >
-                  {results.map((d) => (
-                    <DoctorCard key={d._id} doctor={d} />
-                  ))}
-                </div>
-              ), [results])
+              resultGrid
             )}
           </section>
         </div>

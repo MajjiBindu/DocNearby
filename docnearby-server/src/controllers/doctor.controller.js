@@ -63,8 +63,16 @@ export const updateDoctor = asyncHandler(async (req, res) => {
  * @route GET /api/doctors/:id/slots
  */
 export const getDoctorSlots = asyncHandler(async (req, res) => {
-  const dateStr = req.query.date;
+  let dateStr = req.query.date;
   if (!dateStr) throw new AppError("Date is required (YYYY-MM-DD)", 400);
+
+  // Normalize date format (DD-MM-YYYY to YYYY-MM-DD)
+  if (typeof dateStr === 'string' && dateStr.includes('-')) {
+    const parts = dateStr.split('-');
+    if (parts.length === 3 && parts[0].length === 2 && parts[2].length === 4) {
+      dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+  }
 
   const day = dayOfWeekShort(dateStr);
   const doctor = await doctorService.findById(req.params.id);
@@ -81,6 +89,9 @@ export const getDoctorSlots = asyncHandler(async (req, res) => {
   }
 
   const start = new Date(`${dateStr}T00:00:00.000`);
+  if (isNaN(start.getTime())) {
+    throw new AppError("Invalid date format. Use YYYY-MM-DD.", 400, "invalid_date");
+  }
   const end = new Date(start);
   end.setDate(end.getDate() + 1);
 

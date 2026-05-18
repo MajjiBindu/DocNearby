@@ -13,6 +13,16 @@ function todayIso() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+export function normalizeDate(d) {
+  if (typeof d === "string" && d.includes("-")) {
+    const parts = d.split("-");
+    if (parts.length === 3 && parts[0].length === 2 && parts[2].length === 4) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+  }
+  return d;
+}
+
 export default function BookAppointment() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -115,7 +125,7 @@ export default function BookAppointment() {
             <BookingForm
               date={date}
               setDate={(val) => {
-                setDate(val);
+                setDate(normalizeDate(val));
                 setMessage("");
               }}
               slot={slot}

@@ -42,7 +42,7 @@ export default function DoctorDashboard() {
         clinicApi.list()
       ]);
       
-      const apptList = Array.isArray(apptRes) ? apptRes : (apptRes?.appointments ?? []);
+      const apptList = apptRes?.data?.appointments || (Array.isArray(apptRes) ? apptRes : []);
       setAppointments(apptList);
       
       const docData = doctorRes.data?.doctor || null;

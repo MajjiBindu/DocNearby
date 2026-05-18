@@ -11,7 +11,7 @@ export async function connectDb() {
   mongoose.set("strictQuery", true);
 
   // Modern replacement for express-mongo-sanitize
-  mongoose.set("sanitizeFilter", true);
+  // mongoose.set("sanitizeFilter", true);
 
   await mongoose.connect(uri);
 

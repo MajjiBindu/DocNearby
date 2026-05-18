@@ -9,6 +9,10 @@ export const parseNumber = (v) => {
 
 export const dayOfWeekShort = (date) => {
   const map = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  if (typeof date === "string" && date.includes("-")) {
+    const [yyyy, mm, dd] = date.split("-").map(Number);
+    return map[new Date(yyyy, mm - 1, dd).getDay()];
+  }
   return map[new Date(date).getDay()];
 };
 
