@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import SlotPicker from "../components/appointment/SlotPicker.jsx";
-import BookingForm from "../components/appointment/BookingForm.jsx";
+import CalendarPicker from "../components/appointment/CalendarPicker.jsx";
 import { appointmentApi, doctorApi } from "../services/api.js";
 import { useAuth } from "../context/useAuth.js";
 
@@ -13,21 +13,12 @@ function todayIso() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export function normalizeDate(d) {
-  if (typeof d === "string" && d.includes("-")) {
-    const parts = d.split("-");
-    if (parts.length === 3 && parts[0].length === 2 && parts[2].length === 4) {
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    }
-  }
-  return d;
-}
-
 export default function BookAppointment() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { token } = useAuth();
 
+  const [doctor, setDoctor] = useState(null);
   const [date, setDate] = useState(todayIso());
   const [slot, setSlot] = useState("");
   const [slotInfo, setSlotInfo] = useState({ available: [], booked: [] });
@@ -39,6 +30,24 @@ export default function BookAppointment() {
     if (!token)
       navigate("/login", { replace: true, state: { from: `/book/${id}` } });
   }, [token, navigate, id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadDoctor() {
+      try {
+        const res = await doctorApi.get(id);
+        if (!cancelled) {
+          setDoctor(res?.data?.doctor || null);
+        }
+      } catch (e) {
+        console.error("Failed to load doctor profile", e);
+      }
+    }
+    loadDoctor();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +69,9 @@ export default function BookAppointment() {
       }
     }
     run();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, date]);
 
@@ -121,49 +133,92 @@ export default function BookAppointment() {
             </div>
           </div>
 
-          <div className="grid gap-10">
-            <BookingForm
-              date={date}
-              setDate={(val) => {
-                setDate(normalizeDate(val));
-                setMessage("");
-              }}
-              slot={slot}
-              setSlot={(val) => {
-                setSlot(val);
-                setMessage("");
-              }}
-              onConfirm={confirm}
-              disabled={!canSubmit}
-            />
+          <div className="grid gap-8">
+            {/* Doctor Profile Summary Banner */}
+            {doctor && (
+              <div className="p-5 rounded-3xl bg-slate-50 border border-slate-100 flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black text-2xl shadow-inner shrink-0">
+                  {doctor.userId?.name?.charAt(0) || "D"}
+                </div>
+                <div className="text-center sm:text-left">
+                  <h4 className="font-black text-secondary text-lg">Dr. {doctor.userId?.name || "Clinician"}</h4>
+                  <p className="text-xs font-bold text-primary uppercase tracking-widest mt-0.5">{doctor.specialty || "Specialist"}</p>
+                  <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-2">
+                    <span className="px-2 py-0.5 bg-white border border-slate-100 rounded-lg text-[10px] font-bold text-slate-500 uppercase">
+                      Fee: ₹{doctor.consultationFee || 0}
+                    </span>
+                    <span className="px-2 py-0.5 bg-white border border-slate-100 rounded-lg text-[10px] font-bold text-slate-500 uppercase">
+                      Exp: {doctor.experience || 0} Years
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
+            {/* Interactive Availability Calendar */}
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-medical-text-light uppercase tracking-[0.2em] block">
+                1. Select Consultation Date
+              </label>
+              <CalendarPicker
+                selectedDate={date}
+                onSelectDate={(newDate) => {
+                  setDate(newDate);
+                  setSlot("");
+                  setMessage("");
+                }}
+                availableSlots={doctor?.availableSlots || []}
+              />
+            </div>
+
+            {/* Hourly Slot Selector */}
             <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-50 pb-4">
-                <p className="text-[10px] font-black text-medical-text-light uppercase tracking-[0.2em]">
-                  Available clinical slots
-                </p>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <label className="text-[10px] font-black text-medical-text-light uppercase tracking-[0.2em]">
+                  2. Select Hourly Time Slot
+                </label>
                 {loadingSlots && (
-                  <div className="flex items-center gap-2 text-primary">
+                  <div className="flex items-center gap-2 text-primary" role="status">
                     <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                    <span className="text-[10px] font-bold">Updating...</span>
+                    <span className="text-[10px] font-bold">Checking availability...</span>
                   </div>
                 )}
               </div>
 
-              <SlotPicker
-                available={slotInfo.available}
-                booked={slotInfo.booked}
-                value={slot}
-                onChange={setSlot}
-              />
+              {date && (
+                <SlotPicker
+                  available={slotInfo.available}
+                  booked={slotInfo.booked}
+                  value={slot}
+                  onChange={(val) => {
+                    setSlot(val);
+                    setMessage("");
+                  }}
+                />
+              )}
 
-              {!loadingSlots && !slotInfo.available.length ? (
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center">
-                  <p className="text-sm text-medical-text-light font-bold">
-                    All slots are currently reserved for this date.
+              {date && !loadingSlots && !slotInfo.available.length ? (
+                <div className="p-5 rounded-2xl bg-rose-50/50 border border-rose-100/50 text-center">
+                  <p className="text-xs text-rose-600 font-extrabold uppercase tracking-wider">
+                    Fully Booked
+                  </p>
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    All consultation slots are currently reserved for this date. Please select another day.
                   </p>
                 </div>
               ) : null}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={confirm}
+                disabled={!canSubmit}
+                className="w-full py-4 rounded-2xl bg-primary text-sm font-black text-white uppercase tracking-widest shadow-xl shadow-primary/20 hover:bg-primary-dark transition-all disabled:opacity-40 disabled:pointer-events-none active:scale-98"
+              >
+                {submitting ? "Securing Slot..." : "Confirm Secure Booking"}
+              </button>
             </div>
 
             {message && (
