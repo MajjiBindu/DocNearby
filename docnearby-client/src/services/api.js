@@ -84,6 +84,12 @@ export const reviewApi = {
   byDoctor: (doctorId) => unwrap(api.get(`/reviews/doctor/${doctorId}`)),
 };
 
+export const prescriptionApi = {
+  create: (payload) => unwrap(api.post("/prescriptions", payload)),
+  patient: () => unwrap(api.get("/prescriptions/my")),
+  byAppointment: (appointmentId) => unwrap(api.get(`/prescriptions/appointment/${appointmentId}`)),
+};
+
 export const symptomApi = {
   suggest: (symptoms) => unwrap(api.post("/symptoms/suggest", { symptoms })),
 };

@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import SEO from "../components/common/SEO.jsx";
-import { appointmentApi, doctorApi, clinicApi } from "../services/api.js";
+import { appointmentApi, doctorApi, clinicApi, prescriptionApi } from "../services/api.js";
 import { LANGUAGES, SPECIALTIES } from "../utils/constants.js";
 import translations from "../utils/i18n.js";
+import Modal from "../components/common/Modal.jsx";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import { DashboardStatCard, DashboardWidget } from "../components/dashboard/DashboardComponents.jsx";
 import { 
@@ -40,6 +41,73 @@ export default function DoctorDashboard() {
   const [availabilityError, setAvailabilityError] = useState("");
   const [toast, setToast] = useState("");
   const [toastType, setToastType] = useState("success");
+  const [prescribeTarget, setPrescribeTarget] = useState(null);
+  const [rxModalOpen, setRxModalOpen] = useState(false);
+  const [diagnosis, setDiagnosis] = useState("");
+  const [rxMedicines, setRxMedicines] = useState([{ name: "", dosage: "", frequency: "", duration: "" }]);
+  const [rxAdvice, setRxAdvice] = useState("");
+  const [rxNotes, setRxNotes] = useState("");
+  const [submittingRx, setSubmittingRx] = useState(false);
+
+  const openPrescriptionModal = (appt) => {
+    setPrescribeTarget(appt);
+    setDiagnosis("");
+    setRxMedicines([{ name: "", dosage: "", frequency: "", duration: "" }]);
+    setRxAdvice("");
+    setRxNotes("");
+    setRxModalOpen(true);
+  };
+
+  const addMedicineRow = () => {
+    setRxMedicines([...rxMedicines, { name: "", dosage: "", frequency: "", duration: "" }]);
+  };
+
+  const removeMedicineRow = (index) => {
+    const next = [...rxMedicines];
+    next.splice(index, 1);
+    setRxMedicines(next);
+  };
+
+  const updateMedicineField = (index, field, value) => {
+    const next = [...rxMedicines];
+    next[index][field] = value;
+    setRxMedicines(next);
+  };
+
+  const handlePrescriptionSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!diagnosis.trim()) {
+      setToast("Please enter a diagnosis");
+      setToastType("error");
+      return;
+    }
+    const cleanMeds = rxMedicines.filter(m => m.name.trim() !== "");
+    if (cleanMeds.length === 0) {
+      setToast("Please prescribe at least one medicine");
+      setToastType("error");
+      return;
+    }
+
+    setSubmittingRx(true);
+    try {
+      await prescriptionApi.create({
+        appointmentId: prescribeTarget._id,
+        diagnosis: diagnosis.trim(),
+        medicines: cleanMeds,
+        advice: rxAdvice.trim(),
+        notes: rxNotes.trim()
+      });
+      setToast("Prescription shared successfully!");
+      setToastType("success");
+      setRxModalOpen(false);
+      loadData(); // refresh list to show updated status
+    } catch (err) {
+      setToast(err?.message || "Failed to share prescription");
+      setToastType("error");
+    } finally {
+      setSubmittingRx(false);
+    }
+  };
 
   const DAY_OPTIONS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const t = translations[lang];
@@ -302,7 +370,7 @@ export default function DoctorDashboard() {
                           </button>
                         )}
                         {a.status === 'completed' && (
-                          <button onClick={() => handleStatusUpdate(a._id, 'prescription_shared')} className="px-3 py-1.5 rounded-xl bg-teal-500 text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-teal-200 focus-visible:ring-offset-2" aria-label={`Share prescription with ${a.patientId?.name || 'patient'}`}>
+                          <button onClick={() => openPrescriptionModal(a)} className="px-3 py-1.5 rounded-xl bg-teal-500 text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-teal-200 focus-visible:ring-offset-2" aria-label={`Share prescription with ${a.patientId?.name || 'patient'}`}>
                             Share Prescr.
                           </button>
                         )}
@@ -576,6 +644,150 @@ export default function DoctorDashboard() {
           </div>
         )}
       </div>
+
+      <Modal open={rxModalOpen} title="Create Digital Prescription" onClose={() => setRxModalOpen(false)}>
+        <form onSubmit={handlePrescriptionSubmit} className="space-y-6 py-2">
+          {prescribeTarget && (
+            <div className="space-y-6">
+              {/* Patient header */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                <div>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Patient</span>
+                  <span className="font-extrabold text-secondary text-sm">{prescribeTarget.patientId?.name || "Verified Patient"}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Slot</span>
+                  <span className="font-extrabold text-slate-700 text-xs">{prescribeTarget.slot}</span>
+                </div>
+              </div>
+
+              {/* Diagnosis */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-secondary uppercase tracking-widest block">Diagnosis *</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="e.g. Acute Upper Respiratory Infection"
+                  value={diagnosis}
+                  onChange={(e) => setDiagnosis(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm font-semibold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              {/* Medicines list */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-black text-secondary uppercase tracking-widest block">Prescribed Medicines *</label>
+                  <button 
+                    type="button" 
+                    onClick={addMedicineRow}
+                    className="text-xs font-black text-primary uppercase tracking-widest hover:underline focus:outline-none"
+                  >
+                    + Add Row
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {rxMedicines.map((med, index) => (
+                    <div key={index} className="flex gap-2 items-center bg-slate-50/50 p-3 rounded-2xl border border-slate-100/50 relative group">
+                      <div className="grid grid-cols-12 gap-2 flex-1">
+                        <div className="col-span-12 sm:col-span-4">
+                          <input 
+                            type="text" 
+                            required
+                            placeholder="Medicine Name *"
+                            value={med.name}
+                            onChange={(e) => updateMedicineField(index, "name", e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-primary"
+                          />
+                        </div>
+                        <div className="col-span-4 sm:col-span-3">
+                          <input 
+                            type="text" 
+                            placeholder="Dosage (e.g. 500mg)"
+                            value={med.dosage}
+                            onChange={(e) => updateMedicineField(index, "dosage", e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-primary"
+                          />
+                        </div>
+                        <div className="col-span-4 sm:col-span-3">
+                          <input 
+                            type="text" 
+                            placeholder="Freq (e.g. 1-0-1)"
+                            value={med.frequency}
+                            onChange={(e) => updateMedicineField(index, "frequency", e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-primary"
+                          />
+                        </div>
+                        <div className="col-span-4 sm:col-span-2">
+                          <input 
+                            type="text" 
+                            placeholder="Duration"
+                            value={med.duration}
+                            onChange={(e) => updateMedicineField(index, "duration", e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:border-primary"
+                          />
+                        </div>
+                      </div>
+                      {rxMedicines.length > 1 && (
+                        <button 
+                          type="button" 
+                          onClick={() => removeMedicineRow(index)}
+                          className="text-rose-600 hover:bg-rose-50 p-1.5 rounded-xl transition-colors focus:outline-none"
+                          aria-label="Remove medicine row"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Advice */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-secondary uppercase tracking-widest block">Clinical Advice</label>
+                <textarea 
+                  placeholder="e.g. Drink warm fluids, avoid cold foods."
+                  rows={2}
+                  value={rxAdvice}
+                  onChange={(e) => setRxAdvice(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm font-semibold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-secondary uppercase tracking-widest block">Internal Notes</label>
+                <textarea 
+                  placeholder="e.g. Schedule review in 5 days if fever persists."
+                  rows={2}
+                  value={rxNotes}
+                  onChange={(e) => setRxNotes(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm font-semibold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button 
+                  type="button" 
+                  onClick={() => setRxModalOpen(false)}
+                  className="px-6 py-3 rounded-2xl border border-slate-100 text-xs font-black text-slate-500 hover:bg-slate-50 transition-all focus:outline-none"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={submittingRx}
+                  className="px-6 py-3 rounded-2xl bg-teal-600 text-xs font-black text-white shadow-xl shadow-teal-100 hover:bg-teal-700 transition-all focus:outline-none disabled:opacity-50"
+                >
+                  {submittingRx ? "Sharing..." : "Share Prescription"}
+                </button>
+              </div>
+            </div>
+          )}
+        </form>
+      </Modal>
 
       {toast && (
         <div 

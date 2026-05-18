@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import AppointmentCard from "../components/appointment/AppointmentCard.jsx";
 import Modal from "../components/common/Modal.jsx";
 import SEO from "../components/common/SEO.jsx";
-import { appointmentApi } from "../services/api.js";
+import { appointmentApi, prescriptionApi } from "../services/api.js";
 import translations from "../utils/i18n.js";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import { DashboardStatCard, DashboardWidget, DashboardTabs } from "../components/dashboard/DashboardComponents.jsx";
@@ -18,15 +18,23 @@ export default function PatientDashboard() {
   const [appointmentSubTab, setAppointmentSubTab] = useState("upcoming");
   const [modalOpen, setModalOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState(null);
+  const [prescriptions, setPrescriptions] = useState([]);
+  const [selectedRx, setSelectedRx] = useState(null);
+  const [rxModalOpen, setRxModalOpen] = useState(false);
 
 
   const loadAppointments = useCallback(async () => {
     // Defer loading state to avoid cascading render warning
     Promise.resolve().then(() => setLoading(true));
     try {
-      const res = await appointmentApi.patient();
-      const list = res?.data?.appointments || (Array.isArray(res) ? res : []);
+      const [apptRes, rxRes] = await Promise.all([
+        appointmentApi.patient(),
+        prescriptionApi.patient()
+      ]);
+      const list = apptRes?.data?.appointments || (Array.isArray(apptRes) ? apptRes : []);
       setAppointments(list);
+      const rxList = rxRes?.data?.prescriptions || [];
+      setPrescriptions(rxList);
     } catch (e) {
       setError(e?.message || "Failed to load clinical data");
     } finally {
@@ -179,19 +187,44 @@ export default function PatientDashboard() {
           icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>}
         >
           <div className="space-y-4" role="list">
-            {[1, 2].map((i) => (
-              <div key={i} role="listitem" tabIndex="0" className="p-4 rounded-2xl border border-slate-100 bg-white hover:shadow-xl transition-all cursor-pointer group focus:ring-2 focus:ring-primary outline-none">
-                <div className="flex items-start justify-between mb-2">
-                  <h4 className="font-black text-secondary">Anti-Allergy Course</h4>
-                  <span className="text-[10px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded uppercase tracking-widest">Active</span>
-                </div>
-                <p className="text-xs font-medium text-medical-text-light">Dr. Sarah Connor • 15 Day Course</p>
-                <div className="mt-3 flex gap-2">
-                   <div className="px-2 py-1 bg-slate-50 rounded text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Cetirizine 10mg</div>
-                   <div className="px-2 py-1 bg-slate-50 rounded text-[10px] font-bold text-slate-500 uppercase tracking-tighter">1-0-1</div>
-                </div>
+            {prescriptions.length === 0 ? (
+              <div className="py-10 text-center text-xs font-bold text-slate-400 uppercase tracking-widest" role="status">
+                No digital prescriptions shared yet.
               </div>
-            ))}
+            ) : (
+              prescriptions.map((rx) => (
+                <div 
+                  key={rx._id} 
+                  role="button" 
+                  tabIndex="0" 
+                  onClick={() => { setSelectedRx(rx); setRxModalOpen(true); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { setSelectedRx(rx); setRxModalOpen(true); } }}
+                  className="p-4 rounded-2xl border border-slate-100 bg-white hover:shadow-xl hover:border-primary/20 transition-all cursor-pointer group focus:ring-2 focus:ring-primary outline-none"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="font-black text-secondary group-hover:text-primary transition-colors">{rx.diagnosis}</h4>
+                    <span className="text-[9px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded uppercase tracking-widest">Shared</span>
+                  </div>
+                  <p className="text-xs font-medium text-medical-text-light">
+                    Dr. {rx.doctorId?.userId?.name || "Clinician"} • {rx.doctorId?.specialty || "Specialist"}
+                  </p>
+                  {rx.medicines && rx.medicines.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {rx.medicines.slice(0, 3).map((med, idx) => (
+                        <div key={idx} className="px-2 py-1 bg-slate-50 rounded text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                          {med.name}
+                        </div>
+                      ))}
+                      {rx.medicines.length > 3 && (
+                        <div className="px-2 py-1 bg-primary/10 text-primary rounded text-[10px] font-bold uppercase tracking-tighter">
+                          +{rx.medicines.length - 3} More
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </DashboardWidget>
       </div>
@@ -297,6 +330,96 @@ export default function PatientDashboard() {
             <button className="px-6 py-3 rounded-2xl border border-slate-100 text-sm font-black text-slate-500 hover:bg-slate-50 transition-all focus:outline-none" onClick={() => setModalOpen(false)}>Keep Appointment</button>
             <button className="px-6 py-3 rounded-2xl bg-rose-600 text-sm font-black text-white shadow-xl shadow-rose-100 hover:bg-rose-700 transition-all active:scale-95 focus:outline-none" onClick={confirmCancel}>Cancel Consultation</button>
           </div>
+        </div>
+      </Modal>
+
+      <Modal open={rxModalOpen} title="Prescription Details" onClose={() => setRxModalOpen(false)}>
+        <div className="space-y-6 py-2">
+          {selectedRx && (
+            <div className="space-y-6">
+              {/* Doctor details banner */}
+              <div className="flex items-start gap-4 pb-4 border-b border-slate-100">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-xl shadow-inner shrink-0">
+                  Rx
+                </div>
+                <div>
+                  <h4 className="font-black text-secondary text-base">Dr. {selectedRx.doctorId?.userId?.name || "Clinician"}</h4>
+                  <p className="text-xs font-bold text-medical-text-light uppercase tracking-widest">{selectedRx.doctorId?.specialty || "Specialist"}</p>
+                  {selectedRx.appointmentId && (
+                    <p className="text-[10px] font-semibold text-slate-400 mt-1">
+                      Consultation Date: {new Date(selectedRx.appointmentId.date).toLocaleDateString()} • {selectedRx.appointmentId.slot}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Diagnosis banner */}
+              <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
+                <span className="text-[9px] font-black text-primary uppercase tracking-widest block">Diagnosis</span>
+                <p className="font-extrabold text-slate-800 text-sm mt-0.5">{selectedRx.diagnosis}</p>
+              </div>
+
+              {/* Medicines table */}
+              <div>
+                <span className="text-[9px] font-black text-medical-text-light uppercase tracking-widest block mb-2">Prescribed Medications</span>
+                <div className="border border-slate-100 rounded-2xl overflow-hidden bg-white">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs min-w-[300px]">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold">
+                          <th className="p-3">Medicine</th>
+                          <th className="p-3">Dosage</th>
+                          <th className="p-3">Frequency</th>
+                          <th className="p-3">Duration</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {selectedRx.medicines && selectedRx.medicines.length > 0 ? (
+                          selectedRx.medicines.map((med, index) => (
+                            <tr key={index} className="hover:bg-slate-50/50">
+                              <td className="p-3 font-extrabold text-secondary">{med.name}</td>
+                              <td className="p-3 font-semibold text-slate-600">{med.dosage || "-"}</td>
+                              <td className="p-3 font-semibold text-slate-600">{med.frequency || "-"}</td>
+                              <td className="p-3 font-semibold text-slate-600">{med.duration || "-"}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="4" className="p-4 text-center text-slate-400">No medicines prescribed.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Advice */}
+              {selectedRx.advice && (
+                <div className="p-4 rounded-2xl bg-emerald-50/30 border border-emerald-100/50">
+                  <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest block">Clinical Advice</span>
+                  <p className="text-xs font-semibold text-slate-700 mt-1 whitespace-pre-wrap leading-relaxed">{selectedRx.advice}</p>
+                </div>
+              )}
+
+              {/* Notes */}
+              {selectedRx.notes && (
+                <div className="p-4 rounded-2xl bg-amber-50/30 border border-amber-100/50">
+                  <span className="text-[9px] font-black text-amber-600 uppercase tracking-widest block">Additional Notes</span>
+                  <p className="text-xs font-semibold text-slate-700 mt-1 whitespace-pre-wrap leading-relaxed">{selectedRx.notes}</p>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-4 border-t border-slate-100">
+                <button
+                  onClick={() => setRxModalOpen(false)}
+                  className="px-6 py-2.5 rounded-xl bg-primary text-xs font-black text-white uppercase tracking-widest hover:bg-primary-dark transition-all focus:outline-none"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
     </DashboardLayout>
