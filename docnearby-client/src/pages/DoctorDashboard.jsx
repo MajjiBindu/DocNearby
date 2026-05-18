@@ -1,10 +1,22 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import SEO from "../components/common/SEO.jsx";
 import { appointmentApi, doctorApi, clinicApi } from "../services/api.js";
 import { LANGUAGES, SPECIALTIES } from "../utils/constants.js";
 import translations from "../utils/i18n.js";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import { DashboardStatCard, DashboardWidget } from "../components/dashboard/DashboardComponents.jsx";
+import { 
+  ResponsiveContainer, 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  PieChart, 
+  Pie, 
+  Cell 
+} from "recharts";
 
 export default function DoctorDashboard() {
   const [lang] = useState(() => localStorage.getItem("dn_lang") || "en");
@@ -82,16 +94,107 @@ export default function DoctorDashboard() {
   }, [loadData]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  const todays = appointments
-    .filter((a) => a.date && new Date(a.date).toISOString().slice(0, 10) === todayStr)
-    .sort((a, b) => a.slot?.localeCompare(b.slot ?? ""));
+  const todays = useMemo(() => {
+    if (!Array.isArray(appointments)) return [];
+    return appointments
+      .filter((a) => a && a.date && new Date(a.date).toISOString().slice(0, 10) === todayStr)
+      .sort((a, b) => a.slot?.localeCompare(b.slot ?? ""));
+  }, [appointments, todayStr]);
 
-  const stats = {
-    bookings: appointments.length,
-    today: todays.length,
-    revenue: appointments.filter(a => a.status === 'completed').length * (doctor?.consultationFee || 500),
-    rating: 4.8
-  };
+  const stats = useMemo(() => {
+    const totalCount = Array.isArray(appointments) ? appointments.length : 0;
+    const completedCount = Array.isArray(appointments) 
+      ? appointments.filter(a => a && a.status === 'completed').length 
+      : 0;
+    const fee = Number(doctor?.consultationFee) || 500;
+    
+    return {
+      bookings: totalCount,
+      today: todays.length,
+      revenue: completedCount * fee,
+      rating: 4.8
+    };
+  }, [appointments, todays, doctor]);
+
+  // Group completed appointments by month for revenue chart
+  const revenueData = useMemo(() => {
+    if (!Array.isArray(appointments) || appointments.length === 0) return [];
+    
+    const fee = Number(doctor?.consultationFee) || 500;
+    const monthlyMap = {};
+
+    const completedList = appointments.filter(a => a && a.status === "completed");
+    
+    completedList.forEach(appt => {
+      if (!appt || !appt.date) return;
+      const dateObj = new Date(appt.date);
+      if (isNaN(dateObj.getTime())) return;
+      
+      const key = dateObj.toLocaleString("en-US", { month: "short", year: "numeric" });
+      
+      if (!monthlyMap[key]) {
+        monthlyMap[key] = {
+          name: key,
+          revenue: 0,
+          count: 0,
+          dateObj: dateObj
+        };
+      }
+      monthlyMap[key].revenue += fee;
+      monthlyMap[key].count += 1;
+    });
+
+    return Object.values(monthlyMap)
+      .sort((a, b) => a.dateObj - b.dateObj)
+      .map(({ name, revenue, count }) => ({ name, revenue, count }));
+  }, [appointments, doctor]);
+
+  // Count appointments by status for status chart
+  const statusData = useMemo(() => {
+    if (!Array.isArray(appointments) || appointments.length === 0) return [];
+    
+    const counts = {
+      pending: 0,
+      confirmed: 0,
+      completed: 0,
+      cancelled: 0
+    };
+
+    appointments.forEach(a => {
+      if (!a) return;
+      const status = a.status || "pending";
+      if (counts[status] !== undefined) {
+        counts[status]++;
+      }
+    });
+
+    return [
+      { name: "Pending", value: counts.pending, color: "#F59E0B" },
+      { name: "Confirmed", value: counts.confirmed, color: "#10B981" },
+      { name: "Completed", value: counts.completed, color: "#0F6CBD" },
+      { name: "Cancelled", value: counts.cancelled, color: "#EF4444" }
+    ].filter(item => item.value > 0);
+  }, [appointments]);
+
+  // Completed consultation statistics
+  const analyticsStats = useMemo(() => {
+    const stats = {
+      completedCount: 0,
+      totalRevenue: 0,
+      avgFee: Number(doctor?.consultationFee) || 500,
+      completionRate: 0
+    };
+
+    if (!Array.isArray(appointments) || appointments.length === 0) return stats;
+
+    const totalCount = appointments.length;
+    const completedList = appointments.filter(a => a && a.status === "completed");
+    stats.completedCount = completedList.length;
+    stats.totalRevenue = stats.completedCount * stats.avgFee;
+    stats.completionRate = totalCount > 0 ? Math.round((stats.completedCount / totalCount) * 100) : 0;
+
+    return stats;
+  }, [appointments, doctor]);
 
   const menuItems = [
     { id: 'schedule', label: 'Daily Schedule', icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>, active: activeTab === 'schedule', onClick: () => setActiveTab('schedule') },
@@ -266,42 +369,139 @@ export default function DoctorDashboard() {
     </div>
   );
 
-  const renderAnalytics = () => (
-    <div className="space-y-8 animate-in zoom-in-95 duration-700" role="tabpanel" aria-labelledby="tab-analytics">
-      <div className="grid md:grid-cols-2 gap-8">
-        <DashboardWidget title="Volume Trends" subtitle="Consultation volume over the last 30 days">
-           <div className="h-64 bg-slate-50 rounded-3xl flex items-end justify-between p-6 gap-2" role="img" aria-label="Bar chart showing consultation volume trends">
-             {[40, 70, 45, 90, 65, 80, 50, 95, 75, 60, 85, 55].map((h, i) => (
-               <div key={i} className="flex-1 bg-primary/20 rounded-t-lg hover:bg-primary transition-all group relative" style={{ height: `${h}%` }}>
-                 <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-secondary text-white text-[10px] font-black px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true">{(h*0.5).toFixed(0)}</div>
-               </div>
-             ))}
-           </div>
-        </DashboardWidget>
-        <DashboardWidget title="Patient Satisfaction" subtitle="Aggregated feedback metrics">
-           <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-black text-secondary">Average Rating</span>
-                <span className="text-2xl font-black text-primary" aria-label="4.92 out of 5 stars">4.92/5.0</span>
+  const renderAnalytics = () => {
+    if (!Array.isArray(appointments) || appointments.length === 0) {
+      return (
+        <div className="space-y-8 animate-in zoom-in-95 duration-700" role="tabpanel" aria-labelledby="tab-analytics">
+          <div className="medical-card p-12 text-center flex flex-col items-center justify-center min-h-[300px]">
+            <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center text-primary mb-4">
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-black text-secondary tracking-tight mb-2">No Analytics Data Available</h3>
+            <p className="text-xs font-semibold text-medical-text-light max-w-sm uppercase tracking-wide">
+              Once you start receiving clinical bookings and completing consultations, your revenue and volume statistics will appear here.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-8 animate-in zoom-in-95 duration-700" role="tabpanel" aria-labelledby="tab-analytics">
+        {/* Analytics mini summary cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black">
+              ✓
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Completed Visits</p>
+              <p className="text-2xl font-black text-secondary">{analyticsStats.completedCount}</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black">
+              ₹
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Completed Earnings</p>
+              <p className="text-2xl font-black text-secondary">₹{analyticsStats.totalRevenue}</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-black">
+              %
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Completion Rate</p>
+              <p className="text-2xl font-black text-secondary">{analyticsStats.completionRate}%</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-8">
+          <DashboardWidget title="Revenue Trends" subtitle="Clinical revenue over time from completed visits" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}>
+            {revenueData.length === 0 ? (
+              <div className="h-64 flex flex-col items-center justify-center text-center p-6 border border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
+                <p className="text-xs font-black text-medical-text-light uppercase tracking-widest mb-1">No Completed Consultations</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Complete appointments to start tracking revenue history.</p>
               </div>
-              <div className="space-y-3">
-                {['Accuracy', 'Punctuality', 'Communication'].map(metric => (
-                  <div key={metric} className="space-y-1.5">
-                    <div className="flex justify-between text-[10px] font-black text-medical-text-light uppercase tracking-widest">
-                      <span>{metric}</span>
-                      <span>98%</span>
+            ) : (
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={revenueData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0F6CBD" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#0F6CBD" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis dataKey="name" stroke="#6B7280" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} />
+                    <YAxis stroke="#6B7280" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} tickFormatter={(val) => `₹${val}`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: "#1F2937", border: "none", borderRadius: "12px", color: "#FFFFFF" }}
+                      labelStyle={{ fontWeight: "black", textTransform: "uppercase", fontSize: "10px", color: "#9CA3AF" }}
+                      itemStyle={{ color: "#FFFFFF", fontWeight: "bold", fontSize: "12px" }}
+                      formatter={(value) => [`₹${value}`, "Revenue"]}
+                    />
+                    <Area type="monotone" dataKey="revenue" stroke="#0F6CBD" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </DashboardWidget>
+
+          <DashboardWidget title="Appointment Analytics" subtitle="Status distribution breakdown" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>}>
+            <div className="h-64 w-full flex flex-col sm:flex-row items-center justify-center gap-6">
+              <div className="h-44 w-44 relative shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={statusData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={75}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {statusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: "#1F2937", border: "none", borderRadius: "12px", color: "#FFFFFF" }}
+                      itemStyle={{ color: "#FFFFFF", fontWeight: "bold", fontSize: "12px" }}
+                      formatter={(value) => [value, "Appointments"]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-2xl font-black text-secondary">{appointments.length}</span>
+                  <span className="text-[9px] font-black text-medical-text-light uppercase tracking-widest">Total</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2.5 w-full max-w-[200px]" role="region" aria-label="Chart legend">
+                {statusData.map((entry, index) => (
+                  <div key={index} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+                      <span className="font-extrabold text-secondary">{entry.name}</span>
                     </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden" role="progressbar" aria-valuenow="98" aria-valuemin="0" aria-valuemax="100">
-                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: '98%' }} />
-                    </div>
+                    <span className="font-black text-medical-text-light">{entry.value} ({Math.round((entry.value / appointments.length) * 100)}%)</span>
                   </div>
                 ))}
               </div>
-           </div>
-        </DashboardWidget>
+            </div>
+          </DashboardWidget>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <DashboardLayout 
