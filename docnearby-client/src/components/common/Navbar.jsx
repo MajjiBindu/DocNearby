@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/useAuth.js";
 import translations from "../../utils/i18n.js";
 import LanguageSwitcher from "./LanguageSwitcher.jsx";
+import NotificationDropdown from "./NotificationDropdown.jsx";
 
 export default function Navbar() {
   const { isAuthenticated, isInitialized, user, logout } = useAuth();
@@ -77,6 +78,7 @@ export default function Navbar() {
           <div className="flex items-center gap-4">
             {!isInitialized ? null : isAuthenticated ? (
               <>
+                <NotificationDropdown />
                 <NavLink
                   to={user?.role === "doctor" ? "/doctor" : "/patient"}
                   className="text-sm font-semibold text-secondary hover:text-primary transition-colors"

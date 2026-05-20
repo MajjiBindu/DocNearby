@@ -52,6 +52,7 @@ export const authApi = {
     unwrap(api.post("/auth/resend-otp", { email, purpose })),
   logout: () => unwrap(api.post("/auth/logout")),
   me: () => unwrap(api.get("/auth/me")),
+  updateProfile: (payload) => unwrap(api.patch("/auth/profile", payload)),
 };
 
 export const doctorApi = {
@@ -77,6 +78,8 @@ export const appointmentApi = {
   doctor: () => unwrap(api.get("/appointments/doctor")),
   updateStatus: (id, status) =>
     unwrap(api.patch(`/appointments/${id}/status`, { status })),
+  reschedule: (id, payload) =>
+    unwrap(api.patch(`/appointments/${id}/reschedule`, payload)),
 };
 
 export const reviewApi = {
@@ -127,4 +130,11 @@ export const searchApi = {
   suggestions: (q) => unwrap(api.get("/search/suggestions", { params: { q } })),
   trending: () => unwrap(api.get("/search/trending")),
   global: (params) => unwrap(api.get("/search/global", { params })),
+};
+
+export const notificationApi = {
+  list: (params) => unwrap(api.get("/notifications", { params })),
+  unreadCount: () => unwrap(api.get("/notifications/unread/count")),
+  markAsRead: (id) => unwrap(api.patch(`/notifications/${id}/read`)),
+  markAllAsRead: () => unwrap(api.patch("/notifications/read-all")),
 };

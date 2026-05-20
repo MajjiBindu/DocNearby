@@ -17,6 +17,7 @@ import adminRoutes from "./routes/admin.routes.js";
 import searchRoutes from "./routes/search.routes.js";
 import prescriptionRoutes from "./routes/prescription.routes.js";
 import medicalRecordRoutes from "./routes/medical-record.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
 import { notFound, errorHandler } from "./middleware/error.middleware.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
 
@@ -61,6 +62,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/prescriptions", prescriptionRoutes);
 app.use("/api/medical-records", medicalRecordRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Error Handling
 app.use(notFound);

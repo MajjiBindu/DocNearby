@@ -124,9 +124,15 @@ export const update = async (id, data, user) => {
     throw new AppError('Forbidden', 403);
   }
 
-  const allowed = ["specialty", "qualifications", "languages", "consultationFee", "experience", "clinicId", "availableSlots", "profilePhoto", "bio"];
+  const allowed = ["specialty", "qualifications", "languages", "consultationFee", "experience", "clinicId", "availableSlots", "profilePhoto", "bio", "blockedDates"];
   allowed.forEach(k => {
-    if (data[k] !== undefined) doctor[k] = data[k];
+    if (data[k] !== undefined) {
+      if (k === 'blockedDates' && Array.isArray(data[k])) {
+        doctor[k] = [...new Set(data[k])].filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
+      } else {
+        doctor[k] = data[k];
+      }
+    }
   });
 
   if (data.availableSlots) {

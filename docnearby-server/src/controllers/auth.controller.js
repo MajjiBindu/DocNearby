@@ -247,3 +247,31 @@ export const me = asyncHandler(async (req, res) => {
 
   return sendResponse(res, 200, "User fetched", { user });
 });
+
+/**
+ * @desc Update patient profile
+ * @route PATCH /api/auth/profile
+ */
+export const updateProfile = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId;
+  if (!userId) throw new AppError("Unauthorized", 401, "missing_user");
+
+  const user = await userService.findById(userId);
+  if (!user) throw new AppError("User not found", 404, "user_not_found");
+
+  const { dob, gender, bloodGroup, allergies, chronicConditions, emergencyContact } = req.body;
+
+  user.patientProfile = {
+    ...user.patientProfile,
+    ...(dob !== undefined && { dob }),
+    ...(gender !== undefined && { gender }),
+    ...(bloodGroup !== undefined && { bloodGroup }),
+    ...(allergies !== undefined && { allergies }),
+    ...(chronicConditions !== undefined && { chronicConditions }),
+    ...(emergencyContact !== undefined && { emergencyContact })
+  };
+
+  await user.save();
+
+  return sendResponse(res, 200, "Profile updated successfully", { user });
+});

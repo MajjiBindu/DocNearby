@@ -24,6 +24,18 @@ const userSchema = new mongoose.Schema(
   type: Date,
   default: null,
 },
+    patientProfile: {
+      dob: { type: Date },
+      gender: { type: String, enum: ["Male", "Female", "Other", "Prefer not to say"] },
+      bloodGroup: { type: String, enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"] },
+      allergies: [{ type: String }],
+      chronicConditions: [{ type: String }],
+      emergencyContact: {
+        name: { type: String },
+        phone: { type: String },
+        relation: { type: String }
+      }
+    },
   },
   {
     timestamps: true,

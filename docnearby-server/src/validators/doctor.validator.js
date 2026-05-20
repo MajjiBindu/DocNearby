@@ -16,5 +16,6 @@ export const updateDoctorSchema = Joi.object({
     slotDuration: Joi.number().min(5).max(120).default(30),
     clinicName: Joi.string().allow("", null).trim(),
     location: Joi.string().allow("", null).trim()
-  }))
+  })),
+  blockedDates: Joi.array().items(Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/)).unique()
 }).min(1);

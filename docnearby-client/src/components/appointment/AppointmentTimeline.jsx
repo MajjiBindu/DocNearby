@@ -78,8 +78,8 @@ const AppointmentTimeline = memo(({ status }) => {
           />
 
           {STEPS.map((step, idx) => {
-            const isCompleted = idx < currentStepIndex;
-            const isActive = idx === currentStepIndex;
+            const isCompleted = idx < currentStepIndex || (idx === currentStepIndex && currentStepIndex === STEPS.length - 1);
+            const isActive = idx === currentStepIndex && !isCompleted;
             const isUpcoming = idx > currentStepIndex;
 
             return (
@@ -141,8 +141,8 @@ const AppointmentTimeline = memo(({ status }) => {
         />
 
         {STEPS.map((step, idx) => {
-          const isCompleted = idx < currentStepIndex;
-          const isActive = idx === currentStepIndex;
+          const isCompleted = idx < currentStepIndex || (idx === currentStepIndex && currentStepIndex === STEPS.length - 1);
+          const isActive = idx === currentStepIndex && !isCompleted;
 
           return (
             <div key={step.id} className="flex items-center gap-4 group">

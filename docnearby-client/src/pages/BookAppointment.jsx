@@ -21,7 +21,7 @@ export default function BookAppointment() {
   const [doctor, setDoctor] = useState(null);
   const [date, setDate] = useState(todayIso());
   const [slot, setSlot] = useState("");
-  const [slotInfo, setSlotInfo] = useState({ available: [], booked: [] });
+  const [slotInfo, setSlotInfo] = useState({ available: [], booked: [], isBlocked: false });
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -58,8 +58,9 @@ export default function BookAppointment() {
         const res = await doctorApi.slots(id, date);
         const nextAvailable = res?.data?.available || [];
         const nextBooked = res?.data?.booked || [];
+        const isBlocked = res?.data?.isBlocked || false;
         if (!cancelled) {
-          setSlotInfo({ available: nextAvailable, booked: nextBooked });
+          setSlotInfo({ available: nextAvailable, booked: nextBooked, isBlocked });
           setSlot(nextAvailable.includes(slot) ? slot : "");
         }
       } catch (e) {
@@ -224,7 +225,16 @@ export default function BookAppointment() {
                     />
                   )}
 
-                  {date && !loadingSlots && !slotInfo.available.length ? (
+                  {date && !loadingSlots && slotInfo.isBlocked ? (
+                    <div className="p-5 rounded-2xl bg-amber-50 border border-amber-100/50 text-center">
+                      <p className="text-xs text-amber-700 font-extrabold uppercase tracking-wider">
+                        Doctor on Leave
+                      </p>
+                      <p className="text-xs text-amber-600 font-medium mt-1">
+                        Dr. {doctor?.userId?.name || 'this clinician'} is on leave or unavailable on this date. Please select another day.
+                      </p>
+                    </div>
+                  ) : date && !loadingSlots && !slotInfo.available.length ? (
                     <div className="p-5 rounded-2xl bg-rose-50/50 border border-rose-100/50 text-center">
                       <p className="text-xs text-rose-600 font-extrabold uppercase tracking-wider">
                         Fully Booked

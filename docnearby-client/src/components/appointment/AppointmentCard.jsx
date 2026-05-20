@@ -5,8 +5,8 @@ import { useAuth } from "../../hooks/useAuth.js";
 import { reviewApi } from "../../services/api.js";
 import AppointmentTimeline from "./AppointmentTimeline.jsx";
 
-const AppointmentCard = memo(({ appt, onCancel, onComplete }) => {
-  const isPending = appt?.status === 'pending';
+const AppointmentCard = memo(({ appt, onCancel, onComplete, onReschedule }) => {
+  const isPending = appt?.status === 'pending' || appt?.status === 'booked';
   const isConfirmed = appt?.status === 'confirmed';
 
   const auth = useAuth();
@@ -114,6 +114,16 @@ const AppointmentCard = memo(({ appt, onCancel, onComplete }) => {
             aria-label={`Cancel appointment with Dr. ${appt?.doctorId?.userId?.name}`}
           >
             Cancel
+          </button>
+        ) : null}
+        {onReschedule ? (
+          <button
+            type="button"
+            className="w-full sm:w-auto rounded-md border border-primary px-3 py-2 text-sm font-bold text-primary hover:bg-primary/5 transition-colors focus-visible:ring-2 focus-visible:ring-primary outline-none"
+            onClick={onReschedule}
+            aria-label={`Reschedule appointment with Dr. ${appt?.doctorId?.userId?.name}`}
+          >
+            Reschedule
           </button>
         ) : null}
         {onComplete ? (

@@ -28,6 +28,9 @@ export default function DoctorDashboard() {
   const [clinics, setClinics] = useState([]);
   const [activeTab, setActiveTab] = useState("schedule");
   const [availabilityRows, setAvailabilityRows] = useState([]);
+  const [blockedDates, setBlockedDates] = useState([]);
+  const [savingBlockedDates, setSavingBlockedDates] = useState(false);
+  const [newBlockedDate, setNewBlockedDate] = useState("");
   const [profileForm, setProfileForm] = useState({
     specialty: "",
     experience: "",
@@ -194,9 +197,9 @@ export default function DoctorDashboard() {
   const DAY_OPTIONS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const t = translations[lang];
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (showLoading = true) => {
     // Defer loading state to avoid cascading render warning
-    Promise.resolve().then(() => setLoading(true));
+    if (showLoading) Promise.resolve().then(() => setLoading(true));
     try {
       const [apptRes, doctorRes, clinicRes] = await Promise.all([
         appointmentApi.doctor(),
@@ -214,7 +217,8 @@ export default function DoctorDashboard() {
       setClinics(clinicList);
 
       if (docData) {
-        setProfileForm({
+        setProfileForm(prev => ({
+          ...prev,
           specialty: docData.specialty || "",
           experience: docData.experience != null ? String(docData.experience) : "",
           consultationFee: docData.consultationFee != null ? String(docData.consultationFee) : "",
@@ -223,7 +227,8 @@ export default function DoctorDashboard() {
           qualifications: Array.isArray(docData.qualifications) ? docData.qualifications.join(", ") : "",
           bio: docData.bio || "",
           profilePhoto: docData.profilePhoto || "",
-        });
+        }));
+        setBlockedDates(docData.blockedDates || []);
         
         const initialRows = (docData.availableSlots || []).map((slot) => ({
           day: slot.day || "Mon",
@@ -236,21 +241,29 @@ export default function DoctorDashboard() {
         setAvailabilityRows(initialRows.length ? initialRows : [{ day: "Mon", startTime: "09:00", endTime: "17:00", slotDuration: 30, clinicName: "", location: "" }]);
       }
     } catch (e) {
-      setError("Failed to synchronize clinical data");
+      if (showLoading) setError("Failed to synchronize clinical data");
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadData();
+    loadData(true);
+    const interval = setInterval(() => {
+      loadData(false);
+    }, 10000);
+    return () => clearInterval(interval);
   }, [loadData]);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const getLocalISODate = (d) => {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const todayStr = getLocalISODate(new Date());
   const todays = useMemo(() => {
     if (!Array.isArray(appointments)) return [];
     return appointments
-      .filter((a) => a && a.date && new Date(a.date).toISOString().slice(0, 10) === todayStr)
+      .filter((a) => a && a.date && getLocalISODate(new Date(a.date)) === todayStr)
       .sort((a, b) => a.slot?.localeCompare(b.slot ?? ""));
   }, [appointments, todayStr]);
 
@@ -360,6 +373,7 @@ export default function DoctorDashboard() {
     { id: 'patients', label: 'Patient Roster', icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>, active: activeTab === 'patients', onClick: () => setActiveTab('patients') },
     { id: 'analytics', label: 'Analytics', icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>, active: activeTab === 'analytics', onClick: () => setActiveTab('analytics') },
     { id: 'availability', label: 'Availability Settings', icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, active: activeTab === 'availability', onClick: () => setActiveTab('availability') },
+    { id: 'leave', label: 'Leave & Blocked Dates', icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, active: activeTab === 'leave', onClick: () => setActiveTab('leave') },
   ];
 
   const handleStatusUpdate = async (id, status) => {
@@ -470,6 +484,137 @@ export default function DoctorDashboard() {
       </DashboardWidget>
     </div>
   );
+  const handleAddBlockedDate = () => {
+    if (!newBlockedDate) {
+      setToast("Please select a date first");
+      setToastType("error");
+      return;
+    }
+    if (blockedDates.includes(newBlockedDate)) {
+      setToast("This date is already blocked");
+      setToastType("error");
+      return;
+    }
+    setBlockedDates([...blockedDates, newBlockedDate].sort());
+    setNewBlockedDate("");
+    setToast("Date added to blocked list. Don't forget to save changes!");
+    setToastType("success");
+  };
+
+  const handleRemoveBlockedDate = (dateToRemove) => {
+    setBlockedDates(blockedDates.filter(d => d !== dateToRemove));
+    setToast("Date removed. Save changes to update profile.");
+    setToastType("success");
+  };
+
+  const saveBlockedDates = async () => {
+    setSavingBlockedDates(true);
+    try {
+      await doctorApi.update(doctor._id, { blockedDates });
+      setToast("Leave calendar successfully synchronized");
+      setToastType("success");
+      loadData();
+    } catch (e) {
+      setToast(e?.response?.data?.message || e?.message || "Failed to update leaves");
+      setToastType("error");
+    } finally {
+      setSavingBlockedDates(false);
+    }
+  };
+
+  const renderLeave = () => {
+    const sortedDates = [...blockedDates].sort((a, b) => new Date(a) - new Date(b));
+
+    return (
+      <div className="space-y-8 animate-in slide-in-from-bottom-10 duration-700" role="tabpanel" aria-labelledby="tab-leave">
+        <div className="grid lg:grid-cols-[1fr_360px] gap-8">
+          <DashboardWidget 
+            title="Leave & Blocked Dates" 
+            subtitle="Manage days when you are unavailable. Existing appointments remain visible."
+            icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
+            action={
+              <button 
+                onClick={saveBlockedDates} 
+                disabled={savingBlockedDates} 
+                className="btn-primary !py-2 !text-[10px] uppercase tracking-widest focus-visible:ring-offset-2"
+              >
+                {savingBlockedDates ? "Syncing..." : "Save Leaves"}
+              </button>
+            }
+          >
+            {sortedDates.length === 0 ? (
+              <div className="py-20 text-center text-medical-text-light font-bold uppercase tracking-widest text-xs">
+                No leave dates configured. You are fully available.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left" aria-label="List of leave dates">
+                  <thead>
+                    <tr className="border-b border-slate-50">
+                      <th className="py-4 text-[10px] font-black uppercase tracking-widest text-medical-text-light" scope="col">Date</th>
+                      <th className="py-4 text-[10px] font-black uppercase tracking-widest text-medical-text-light" scope="col">Day of Week</th>
+                      <th className="py-4 text-[10px] font-black uppercase tracking-widest text-medical-text-light text-right" scope="col">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {sortedDates.map((dateStr) => {
+                      const d = new Date(dateStr + 'T00:00:00');
+                      const dayName = d.toLocaleDateString("en-US", { weekday: "long" });
+                      const formattedDate = d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+                      return (
+                        <tr key={dateStr} className="group hover:bg-slate-50/50 transition-colors">
+                          <td className="py-4 font-black text-secondary">{formattedDate}</td>
+                          <td className="py-4 font-bold text-medical-text-light">{dayName}</td>
+                          <td className="py-4 text-right">
+                            <button 
+                              onClick={() => handleRemoveBlockedDate(dateStr)}
+                              className="p-2 rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-100 transition-colors focus:outline-none"
+                              aria-label={`Remove leave date ${formattedDate}`}
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </DashboardWidget>
+
+          <div className="space-y-6">
+            <DashboardWidget 
+              title="Add Leave Date" 
+              subtitle="Select a single date to block new appointments"
+            >
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label htmlFor="new-blocked-date" className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Select Date</label>
+                  <input 
+                    id="new-blocked-date"
+                    type="date" 
+                    value={newBlockedDate} 
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setNewBlockedDate(e.target.value)} 
+                    className="medical-input !py-2.5 !text-xs focus:ring-primary" 
+                  />
+                </div>
+                <button 
+                  onClick={handleAddBlockedDate} 
+                  className="btn-primary w-full !py-3 !text-[10px] uppercase tracking-widest focus-visible:ring-offset-2"
+                >
+                  Block Selected Date
+                </button>
+              </div>
+            </DashboardWidget>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const renderAvailability = () => (
     <div className="space-y-8 animate-in slide-in-from-bottom-10 duration-700" role="tabpanel" aria-labelledby="tab-availability">
@@ -759,6 +904,42 @@ export default function DoctorDashboard() {
                     <span className="text-[9px] font-black bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded uppercase tracking-widest">Verified History</span>
                   </div>
                 </div>
+                {selectedPatient.patientProfile && (
+                  <div className="space-y-3 pt-4 border-t border-slate-200">
+                    {selectedPatient.patientProfile.dob && (
+                      <div className="flex justify-between">
+                        <span className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Age/DOB</span>
+                        <span className="text-xs font-bold text-secondary">{new Date(selectedPatient.patientProfile.dob).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                    {selectedPatient.patientProfile.bloodGroup && (
+                      <div className="flex justify-between">
+                        <span className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Blood Group</span>
+                        <span className="text-xs font-bold text-red-600">{selectedPatient.patientProfile.bloodGroup}</span>
+                      </div>
+                    )}
+                    {selectedPatient.patientProfile.allergies && selectedPatient.patientProfile.allergies.length > 0 && (
+                      <div>
+                        <span className="text-[10px] font-black text-medical-text-light uppercase tracking-widest block mb-1">Allergies</span>
+                        <div className="flex flex-wrap gap-1">
+                          {selectedPatient.patientProfile.allergies.map((allergy, i) => (
+                            <span key={i} className="px-2 py-0.5 bg-amber-50 border border-amber-100 text-amber-700 rounded text-[9px] font-black uppercase tracking-widest">{allergy}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {selectedPatient.patientProfile.chronicConditions && selectedPatient.patientProfile.chronicConditions.length > 0 && (
+                      <div>
+                        <span className="text-[10px] font-black text-medical-text-light uppercase tracking-widest block mb-1">Chronic Conditions</span>
+                        <div className="flex flex-wrap gap-1">
+                          {selectedPatient.patientProfile.chronicConditions.map((cond, i) => (
+                            <span key={i} className="px-2 py-0.5 bg-rose-50 border border-rose-100 text-rose-700 rounded text-[9px] font-black uppercase tracking-widest">{cond}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1025,6 +1206,7 @@ export default function DoctorDashboard() {
 
             {activeTab === 'schedule' && renderSchedule()}
             {activeTab === 'availability' && renderAvailability()}
+            {activeTab === 'leave' && renderLeave()}
             {activeTab === 'analytics' && renderAnalytics()}
             {activeTab === 'patients' && renderPatientRoster()}
           </div>

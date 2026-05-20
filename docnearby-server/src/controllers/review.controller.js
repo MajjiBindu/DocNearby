@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { sendResponse } from '../utils/response.js';
 import AppError from '../utils/AppError.js';
+import { Notification } from '../models/Notification.js';
 
 /**
  * @desc Create a new review for a doctor
@@ -48,6 +49,14 @@ export const createReview = asyncHandler(async (req, res) => {
       }).exec();
     }
   }).catch(err => console.error('Rating update failed', err));
+
+  Notification.create({
+    userId: (await Doctor.findById(doctorId).populate('userId')).userId._id,
+    title: 'New Review',
+    message: `You received a ${rating}-star review from a patient.`,
+    type: 'review',
+    referenceId: review._id
+  }).catch(err => console.error('In-app notification failed', err));
 
   return sendResponse(res, 201, "Review created successfully", { review });
 });

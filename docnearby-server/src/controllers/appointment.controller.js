@@ -42,3 +42,14 @@ export const updateAppointmentStatus = asyncHandler(async (req, res) => {
   const appointment = await appointmentService.updateStatus(req.params.id, req.body.status, req.user);
   return sendResponse(res, 200, "Appointment status updated", { appointment });
 });
+
+/**
+ * @desc Reschedule an appointment
+ * @route PATCH /api/appointments/:id/reschedule
+ */
+export const rescheduleAppointment = asyncHandler(async (req, res) => {
+  const { date, slot } = req.body;
+  const appointment = await appointmentService.reschedule(req.params.id, date, slot, req.user);
+  return sendResponse(res, 200, "Appointment rescheduled successfully", { appointment });
+});
+

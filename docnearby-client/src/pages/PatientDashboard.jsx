@@ -1,10 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import AppointmentCard from "../components/appointment/AppointmentCard.jsx";
+import SlotPicker from "../components/appointment/SlotPicker.jsx";
+import CalendarPicker from "../components/appointment/CalendarPicker.jsx";
 import Modal from "../components/common/Modal.jsx";
 import SEO from "../components/common/SEO.jsx";
-import { appointmentApi, prescriptionApi, medicalRecordApi } from "../services/api.js";
+import { appointmentApi, prescriptionApi, medicalRecordApi, authApi, doctorApi } from "../services/api.js";
 import translations from "../utils/i18n.js";
+import { isUpcoming, isPast, isCancellable } from "../utils/appointmentUtils.js";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import { DashboardStatCard, DashboardWidget, DashboardTabs } from "../components/dashboard/DashboardComponents.jsx";
 
@@ -19,6 +22,19 @@ export default function PatientDashboard() {
   const [modalOpen, setModalOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [prescriptions, setPrescriptions] = useState([]);
+
+  // Reschedule state
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+  const [rescheduleTarget, setRescheduleTarget] = useState(null);
+  const [rescheduleDoctor, setRescheduleDoctor] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleSlot, setRescheduleSlot] = useState("");
+  const [loadingDoctorData, setLoadingDoctorData] = useState(false);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [slotInfo, setSlotInfo] = useState({ available: [], booked: [], isBlocked: false });
+  const [rescheduleError, setRescheduleError] = useState("");
+  const [rescheduleSubmitting, setRescheduleSubmitting] = useState(false);
+  const [rescheduleSuccess, setRescheduleSuccess] = useState(false);
   const [selectedRx, setSelectedRx] = useState(null);
   const [rxModalOpen, setRxModalOpen] = useState(false);
 
@@ -26,6 +42,43 @@ export default function PatientDashboard() {
   const [recordsPage, setRecordsPage] = useState(1);
   const [recordsTotalPages, setRecordsTotalPages] = useState(1);
   const [medicalRecords, setMedicalRecords] = useState([]);
+
+  const [profileForm, setProfileForm] = useState({
+    dob: "",
+    gender: "",
+    bloodGroup: "",
+    allergies: "",
+    chronicConditions: "",
+    emergencyContactName: "",
+    emergencyContactPhone: "",
+    emergencyContactRelation: ""
+  });
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileMessage, setProfileMessage] = useState("");
+
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        const res = await authApi.me();
+        const profile = res?.data?.user?.patientProfile;
+        if (profile) {
+          setProfileForm({
+            dob: profile.dob ? new Date(profile.dob).toISOString().split('T')[0] : "",
+            gender: profile.gender || "",
+            bloodGroup: profile.bloodGroup || "",
+            allergies: profile.allergies ? profile.allergies.join(", ") : "",
+            chronicConditions: profile.chronicConditions ? profile.chronicConditions.join(", ") : "",
+            emergencyContactName: profile.emergencyContact?.name || "",
+            emergencyContactPhone: profile.emergencyContact?.phone || "",
+            emergencyContactRelation: profile.emergencyContact?.relation || ""
+          });
+        }
+      } catch (e) {
+        console.error("Failed to load profile", e);
+      }
+    }
+    loadProfile();
+  }, []);
 
   useEffect(() => {
     async function loadRecords() {
@@ -41,9 +94,9 @@ export default function PatientDashboard() {
   }, [recordsPage]);
 
 
-  const loadAppointments = useCallback(async () => {
+  const loadAppointments = useCallback(async (showLoading = true) => {
     // Defer loading state to avoid cascading render warning
-    Promise.resolve().then(() => setLoading(true));
+    if (showLoading) Promise.resolve().then(() => setLoading(true));
     try {
       const [apptRes, rxRes] = await Promise.all([
         appointmentApi.patient(),
@@ -54,38 +107,22 @@ export default function PatientDashboard() {
       const rxList = rxRes?.data?.prescriptions || [];
       setPrescriptions(rxList);
     } catch (e) {
-      setError(e?.message || "Failed to load clinical data");
+      if (showLoading) setError(e?.message || "Failed to load clinical data");
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadAppointments();
+    loadAppointments(true);
+    const interval = setInterval(() => {
+      loadAppointments(false); // poll silently
+    }, 10000);
+    return () => clearInterval(interval);
   }, [loadAppointments]);
 
-  const now = new Date();
-  const toDateTime = (a) => {
-    const dateStr = new Date(a.date).toISOString().slice(0, 10);
-    const [time, meridiem] = (a.slot || "").split(" ");
-    let [hours, minutes] = time.split(":").map(Number);
-    if (meridiem === "PM" && hours !== 12) hours += 12;
-    if (meridiem === "AM" && hours === 12) hours = 0;
-    return new Date(`${dateStr}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`);
-  };
-
-  const upcoming = appointments.filter((a) => 
-    a.status !== "cancelled" && 
-    a.status !== "completed" && 
-    a.status !== "prescription_shared" && 
-    toDateTime(a) > now
-  );
-  const past = appointments.filter((a) => 
-    a.status === "completed" || 
-    a.status === "prescription_shared" || 
-    a.status === "cancelled" || 
-    toDateTime(a) <= now
-  );
+  const upcoming = appointments.filter(isUpcoming);
+  const past = appointments.filter(isPast);
 
   const stats = {
     total: appointments.length,
@@ -114,6 +151,13 @@ export default function PatientDashboard() {
       icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>, 
       active: activeTab === 'care-team',
       onClick: () => setActiveTab('care-team')
+    },
+    { 
+      id: 'profile', 
+      label: 'Medical Profile', 
+      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>, 
+      active: activeTab === 'profile',
+      onClick: () => setActiveTab('profile')
     }
   ];
 
@@ -128,6 +172,95 @@ export default function PatientDashboard() {
     } finally {
       setModalOpen(false);
       setCancelTarget(null);
+    }
+  };
+
+  const handleOpenReschedule = async (appt) => {
+    setRescheduleTarget(appt);
+    setRescheduleDoctor(null);
+    setRescheduleSlot("");
+    setRescheduleError("");
+    setRescheduleSuccess(false);
+    
+    let initialDate = "";
+    if (appt.date) {
+      const d = new Date(appt.date);
+      initialDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    setRescheduleDate(initialDate);
+    setRescheduleModalOpen(true);
+    setLoadingDoctorData(true);
+    
+    try {
+      const docId = appt.doctorId?._id || appt.doctorId;
+      const res = await doctorApi.get(docId);
+      const doctorData = res?.data?.doctor || res?.data || null;
+      setRescheduleDoctor(doctorData);
+    } catch (e) {
+      setRescheduleError("Failed to load doctor availability profile.");
+      console.error(e);
+    } finally {
+      setLoadingDoctorData(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!rescheduleDoctor || !rescheduleDate) return;
+    
+    let cancelled = false;
+    async function loadSlots() {
+      setLoadingSlots(true);
+      setRescheduleError("");
+      try {
+        const docId = rescheduleDoctor._id || rescheduleDoctor.id;
+        const res = await doctorApi.slots(docId, rescheduleDate);
+        const nextAvailable = res?.data?.available || [];
+        const nextBooked = res?.data?.booked || [];
+        const isBlocked = res?.data?.isBlocked || false;
+        
+        if (!cancelled) {
+          setSlotInfo({ available: nextAvailable, booked: nextBooked, isBlocked });
+          setRescheduleSlot(prev => nextAvailable.includes(prev) ? prev : "");
+        }
+      } catch (e) {
+        if (!cancelled) setRescheduleError(e?.message || "Failed to load available slots.");
+      } finally {
+        if (!cancelled) setLoadingSlots(false);
+      }
+    }
+    loadSlots();
+    return () => {
+      cancelled = true;
+    };
+  }, [rescheduleDoctor, rescheduleDate]);
+
+  const handleConfirmReschedule = async () => {
+    if (!rescheduleTarget || !rescheduleDate || !rescheduleSlot) {
+      setRescheduleError("Please select a valid date and time slot.");
+      return;
+    }
+    
+    setRescheduleSubmitting(true);
+    setRescheduleError("");
+    try {
+      await appointmentApi.reschedule(rescheduleTarget._id, {
+        date: rescheduleDate,
+        slot: rescheduleSlot,
+      });
+      setRescheduleSuccess(true);
+      setTimeout(() => {
+        setRescheduleModalOpen(false);
+        setRescheduleTarget(null);
+        setRescheduleDoctor(null);
+        setRescheduleDate("");
+        setRescheduleSlot("");
+        setRescheduleSuccess(false);
+        loadAppointments(true);
+      }, 1500);
+    } catch (e) {
+      setRescheduleError(e?.response?.data?.message || e?.message || "Failed to reschedule appointment.");
+    } finally {
+      setRescheduleSubmitting(false);
     }
   };
 
@@ -162,7 +295,8 @@ export default function PatientDashboard() {
               <div key={appt._id} role="listitem" className="border border-slate-50 rounded-3xl overflow-hidden hover:shadow-lg transition-shadow focus-within:ring-2 focus-within:ring-primary outline-none">
                 <AppointmentCard 
                   appt={appt} 
-                  onCancel={appt.status === 'pending' || appt.status === 'confirmed' ? () => { setCancelTarget(appt); setModalOpen(true); } : undefined} 
+                  onCancel={isCancellable(appt) ? () => { setCancelTarget(appt); setModalOpen(true); } : undefined} 
+                  onReschedule={isCancellable(appt) ? () => handleOpenReschedule(appt) : undefined}
                 />
               </div>
             ))
@@ -182,8 +316,12 @@ export default function PatientDashboard() {
         >
           <div className="space-y-4" role="list">
             {medicalRecords.length === 0 ? (
-              <div className="py-16 text-center text-xs font-bold text-slate-400 uppercase tracking-widest" role="status">
-                No medical records shared yet.
+              <div className="py-20 flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-100 rounded-3xl bg-slate-50/50">
+                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
+                  <svg className="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                </div>
+                <h4 className="text-sm font-black text-slate-500 uppercase tracking-widest">No Medical Records</h4>
+                <p className="text-xs text-slate-400 mt-2 font-medium max-w-xs">You don't have any shared prescriptions or medical records yet.</p>
               </div>
             ) : (
               medicalRecords.map((rx) => (
@@ -193,15 +331,30 @@ export default function PatientDashboard() {
                   tabIndex="0" 
                   onClick={() => { setSelectedRx(rx); setRxModalOpen(true); }}
                   onKeyDown={(e) => { if (e.key === 'Enter') { setSelectedRx(rx); setRxModalOpen(true); } }}
-                  className="p-5 rounded-2xl border border-slate-100 bg-white hover:shadow-xl hover:border-primary/20 transition-all cursor-pointer group focus:ring-2 focus:ring-primary outline-none"
+                  className="p-5 rounded-3xl border border-slate-100 bg-white hover:shadow-xl hover:border-primary/20 transition-all cursor-pointer group focus:ring-2 focus:ring-primary outline-none"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-black text-secondary group-hover:text-primary transition-colors">{rx.diagnosis}</h4>
-                    <span className="text-[9px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded uppercase tracking-widest">Shared</span>
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h4 className="font-black text-secondary text-base group-hover:text-primary transition-colors">
+                        {rx.diagnosis || "Consultation Record"}
+                      </h4>
+                      <p className="text-xs font-bold text-slate-400 mt-0.5">
+                        {rx.appointmentId?.date ? new Date(rx.appointmentId.date).toLocaleDateString() : 'Date unavailable'}
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-black bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-md uppercase tracking-widest shrink-0">
+                      Prescription
+                    </span>
                   </div>
-                  <p className="text-xs font-medium text-medical-text-light">
-                    Dr. {rx.doctorId?.userId?.name || "Clinician"} • {rx.doctorId?.specialty || "Specialist"}
-                  </p>
+                  
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-[10px]">
+                      {rx.doctorId?.userId?.name?.charAt(0) || "D"}
+                    </div>
+                    <p className="text-xs font-bold text-slate-600">
+                      Dr. {rx.doctorId?.userId?.name || "Clinician"} <span className="text-slate-300 mx-1">•</span> <span className="text-slate-400 font-medium">{rx.doctorId?.specialty || "Specialist"}</span>
+                    </p>
+                  </div>
                   
                   {/* Extensible attachment info */}
                   {rx.pdfs && rx.pdfs.length > 0 && (
@@ -292,6 +445,98 @@ export default function PatientDashboard() {
     </div>
   );
 
+  const saveProfile = async () => {
+    setSavingProfile(true);
+    setProfileMessage("");
+    try {
+      const payload = {
+        dob: profileForm.dob || undefined,
+        gender: profileForm.gender || undefined,
+        bloodGroup: profileForm.bloodGroup || undefined,
+        allergies: profileForm.allergies ? profileForm.allergies.split(",").map(s => s.trim()).filter(Boolean) : undefined,
+        chronicConditions: profileForm.chronicConditions ? profileForm.chronicConditions.split(",").map(s => s.trim()).filter(Boolean) : undefined,
+        emergencyContact: {
+          name: profileForm.emergencyContactName,
+          phone: profileForm.emergencyContactPhone,
+          relation: profileForm.emergencyContactRelation
+        }
+      };
+      await authApi.updateProfile(payload);
+      setProfileMessage("Profile updated successfully!");
+    } catch (e) {
+      setProfileMessage("Failed to update profile");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const renderProfile = () => (
+    <div className="space-y-6 animate-in fade-in duration-500" role="tabpanel" aria-labelledby="tab-profile">
+      <DashboardWidget 
+        title="Medical Profile" 
+        subtitle="Manage your personal and medical information"
+        icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>}
+      >
+        {profileMessage && (
+          <div className={`p-4 mb-4 rounded-xl text-sm font-bold ${profileMessage.includes('success') ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+            {profileMessage}
+          </div>
+        )}
+        <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); saveProfile(); }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Date of Birth</label>
+              <input type="date" value={profileForm.dob} onChange={(e) => setProfileForm({...profileForm, dob: e.target.value})} className="medical-input !py-2.5 !text-xs focus:ring-primary" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Gender</label>
+              <select value={profileForm.gender} onChange={(e) => setProfileForm({...profileForm, gender: e.target.value})} className="medical-input !py-2.5 !text-xs focus:ring-primary">
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+                <option value="Prefer not to say">Prefer not to say</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Blood Group</label>
+              <select value={profileForm.bloodGroup} onChange={(e) => setProfileForm({...profileForm, bloodGroup: e.target.value})} className="medical-input !py-2.5 !text-xs focus:ring-primary">
+                <option value="">Select Blood Group</option>
+                {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"].map(bg => <option key={bg} value={bg}>{bg}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Allergies (comma separated)</label>
+              <input type="text" placeholder="e.g. Peanuts, Penicillin" value={profileForm.allergies} onChange={(e) => setProfileForm({...profileForm, allergies: e.target.value})} className="medical-input !py-2.5 !text-xs focus:ring-primary" />
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <label className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Chronic Conditions (comma separated)</label>
+              <input type="text" placeholder="e.g. Asthma, Diabetes" value={profileForm.chronicConditions} onChange={(e) => setProfileForm({...profileForm, chronicConditions: e.target.value})} className="medical-input !py-2.5 !text-xs focus:ring-primary" />
+            </div>
+            <div className="space-y-1 md:col-span-2 pt-4 border-t border-slate-100">
+              <h4 className="text-sm font-black text-secondary">Emergency Contact</h4>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Name</label>
+              <input type="text" value={profileForm.emergencyContactName} onChange={(e) => setProfileForm({...profileForm, emergencyContactName: e.target.value})} className="medical-input !py-2.5 !text-xs focus:ring-primary" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Phone</label>
+              <input type="tel" value={profileForm.emergencyContactPhone} onChange={(e) => setProfileForm({...profileForm, emergencyContactPhone: e.target.value})} className="medical-input !py-2.5 !text-xs focus:ring-primary" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Relation</label>
+              <input type="text" value={profileForm.emergencyContactRelation} onChange={(e) => setProfileForm({...profileForm, emergencyContactRelation: e.target.value})} className="medical-input !py-2.5 !text-xs focus:ring-primary" />
+            </div>
+          </div>
+          <button type="submit" disabled={savingProfile} className="btn-primary w-full !py-3 !text-[10px] uppercase focus-visible:ring-offset-2">
+            {savingProfile ? "Saving..." : "Save Profile"}
+          </button>
+        </form>
+      </DashboardWidget>
+    </div>
+  );
+
   return (
     <DashboardLayout 
       title="Personal Health HQ" 
@@ -343,6 +588,7 @@ export default function PatientDashboard() {
             {activeTab === 'appointments' && renderAppointments()}
             {activeTab === 'records' && renderHealthRecords()}
             {activeTab === 'care-team' && renderCareTeam()}
+            {activeTab === 'profile' && renderProfile()}
           </div>
         )}
       </div>
@@ -364,69 +610,71 @@ export default function PatientDashboard() {
           {selectedRx && (
             <div className="space-y-6">
               {/* Doctor details banner */}
-              <div className="flex items-start gap-4 pb-4 border-b border-slate-100">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-xl shadow-inner shrink-0">
-                  Rx
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 rounded-3xl bg-slate-50 border border-slate-100">
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black text-2xl shadow-inner shrink-0">
+                  {selectedRx.doctorId?.userId?.name?.charAt(0) || "Rx"}
                 </div>
-                <div>
-                  <h4 className="font-black text-secondary text-base">Dr. {selectedRx.doctorId?.userId?.name || "Clinician"}</h4>
-                  <p className="text-xs font-bold text-medical-text-light uppercase tracking-widest">{selectedRx.doctorId?.specialty || "Specialist"}</p>
-                  {selectedRx.appointmentId && (
-                    <p className="text-[10px] font-semibold text-slate-400 mt-1">
-                      Consultation Date: {new Date(selectedRx.appointmentId.date).toLocaleDateString()} • {selectedRx.appointmentId.slot}
-                    </p>
-                  )}
+                <div className="flex-1">
+                  <h4 className="font-black text-secondary text-lg">Dr. {selectedRx.doctorId?.userId?.name || "Clinician"}</h4>
+                  <p className="text-xs font-bold text-medical-text-light uppercase tracking-widest mt-0.5">{selectedRx.doctorId?.specialty || "Specialist"}</p>
+                </div>
+                <div className="sm:text-right">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Consultation Date</p>
+                  <p className="text-sm font-bold text-slate-700">
+                    {selectedRx.appointmentId?.date ? new Date(selectedRx.appointmentId.date).toLocaleDateString() : 'Date unavailable'}
+                  </p>
                 </div>
               </div>
 
               {/* Diagnosis banner */}
-              <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
-                <span className="text-[9px] font-black text-primary uppercase tracking-widest block">Diagnosis</span>
-                <p className="font-extrabold text-slate-800 text-sm mt-0.5">{selectedRx.diagnosis}</p>
+              <div className="px-1">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Diagnosis / Condition</span>
+                <p className="font-black text-secondary text-base">{selectedRx.diagnosis || "No diagnosis specified"}</p>
               </div>
 
-              {/* Medicines table */}
-              <div>
-                <span className="text-[9px] font-black text-medical-text-light uppercase tracking-widest block mb-2">Prescribed Medications</span>
-                <div className="border border-slate-100 rounded-2xl overflow-hidden bg-white">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs min-w-[300px]">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold">
-                          <th className="p-3">Medicine</th>
-                          <th className="p-3">Dosage</th>
-                          <th className="p-3">Frequency</th>
-                          <th className="p-3">Duration</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50">
-                        {selectedRx.medicines && selectedRx.medicines.length > 0 ? (
-                          selectedRx.medicines.map((med, index) => (
-                            <tr key={index} className="hover:bg-slate-50/50">
-                              <td className="p-3 font-extrabold text-secondary">{med.name}</td>
-                              <td className="p-3 font-semibold text-slate-600">{med.dosage || "-"}</td>
-                              <td className="p-3 font-semibold text-slate-600">{med.frequency || "-"}</td>
-                              <td className="p-3 font-semibold text-slate-600">{med.duration || "-"}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="4" className="p-4 text-center text-slate-400">No medicines prescribed.</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+              {/* Medicines cards instead of table for better mobile UX */}
+              <div className="px-1">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Prescribed Medications</span>
+                {selectedRx.medicines && selectedRx.medicines.length > 0 ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {selectedRx.medicines.map((med, index) => (
+                      <div key={index} className="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm flex flex-col gap-2">
+                        <h5 className="font-extrabold text-primary text-sm">{med.name}</h5>
+                        <div className="grid grid-cols-2 gap-y-3 gap-x-2 mt-1">
+                          <div>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Dosage</span>
+                            <span className="text-xs font-bold text-slate-700">{med.dosage || "-"}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Frequency</span>
+                            <span className="text-xs font-bold text-slate-700">{med.frequency || "-"}</span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Duration</span>
+                            <span className="text-xs font-bold text-slate-700">{med.duration || "-"}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-center">
+                    <p className="text-xs font-bold text-slate-400">No medicines prescribed.</p>
+                  </div>
+                )}
               </div>
 
               {/* Advice */}
-              {selectedRx.advice && (
-                <div className="p-4 rounded-2xl bg-emerald-50/30 border border-emerald-100/50">
-                  <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest block">Clinical Advice</span>
-                  <p className="text-xs font-semibold text-slate-700 mt-1 whitespace-pre-wrap leading-relaxed">{selectedRx.advice}</p>
-                </div>
-              )}
+              <div className="px-1">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Clinical Advice</span>
+                {selectedRx.advice ? (
+                  <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100">
+                    <p className="text-sm font-medium text-emerald-900 whitespace-pre-wrap leading-relaxed">{selectedRx.advice}</p>
+                  </div>
+                ) : (
+                  <p className="text-xs font-medium text-slate-400 italic">No specific advice recorded.</p>
+                )}
+              </div>
 
               {/* Notes */}
               {selectedRx.notes && (
@@ -466,6 +714,137 @@ export default function PatientDashboard() {
                   className="px-6 py-2.5 rounded-xl bg-primary text-xs font-black text-white uppercase tracking-widest hover:bg-primary-dark transition-all focus:outline-none"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      <Modal open={rescheduleModalOpen} title="Reschedule Clinical Visit" onClose={() => { if (!rescheduleSubmitting) setRescheduleModalOpen(false); }}>
+        <div className="space-y-6 py-2">
+          {rescheduleSuccess ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center space-y-3 animate-in fade-in duration-300">
+              <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-sm" aria-hidden="true">
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h4 className="text-lg font-bold text-slate-900">Rescheduled Successfully!</h4>
+              <p className="text-sm text-slate-500 max-w-xs">
+                Your consultation has been successfully moved to the new date and time slot.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {loadingDoctorData ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-3">
+                  <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Loading clinician profile...</p>
+                </div>
+              ) : rescheduleDoctor ? (
+                <div className="space-y-6">
+                  {/* Doctor Profile Mini Banner */}
+                  <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 shadow-sm">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-xl shrink-0">
+                      {rescheduleDoctor.userId?.name?.charAt(0) || "Dr"}
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-secondary text-sm">Dr. {rescheduleDoctor.userId?.name || "Clinician"}</h4>
+                      <p className="text-[10px] font-bold text-medical-text-light uppercase tracking-wider mt-0.5">{rescheduleDoctor.specialty || "Specialist"}</p>
+                    </div>
+                  </div>
+
+                  {/* Date selection picker */}
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-medical-text-light uppercase tracking-widest block">
+                      1. Choose Consultation Date
+                    </label>
+                    <CalendarPicker
+                      selectedDate={rescheduleDate}
+                      onSelectDate={(newDate) => {
+                        setRescheduleDate(newDate);
+                        setRescheduleSlot("");
+                        setRescheduleError("");
+                      }}
+                      availableSlots={rescheduleDoctor.availableSlots || []}
+                    />
+                  </div>
+
+                  {/* Slot selector */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <label className="text-[9px] font-black text-medical-text-light uppercase tracking-widest block">
+                        2. Select New Time Slot
+                      </label>
+                      {loadingSlots && (
+                        <div className="flex items-center gap-1 text-primary">
+                          <div className="w-3.5 h-3.5 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                          <span className="text-[9px] font-bold">Checking slots...</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {rescheduleDate && (
+                      <SlotPicker
+                        available={slotInfo.available}
+                        booked={slotInfo.booked}
+                        value={rescheduleSlot}
+                        onChange={(val) => {
+                          setRescheduleSlot(val);
+                          setRescheduleError("");
+                        }}
+                      />
+                    )}
+
+                    {rescheduleDate && !loadingSlots && slotInfo.isBlocked && (
+                      <div className="p-4 rounded-xl bg-amber-50 border border-amber-100/50 text-center">
+                        <p className="text-xs text-amber-700 font-extrabold uppercase tracking-wider">
+                          Doctor is unavailable / blocked on this date
+                        </p>
+                      </div>
+                    )}
+
+                    {rescheduleDate && !loadingSlots && !slotInfo.isBlocked && slotInfo.available.length === 0 && (
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                        <p className="text-xs text-slate-500 font-bold">
+                          No available times for this day. Please select another date.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-5 rounded-2xl bg-red-50 text-red-600 text-center text-sm font-bold">
+                  Could not load clinician details.
+                </div>
+              )}
+
+              {rescheduleError && (
+                <div className="p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 font-bold text-xs flex items-center gap-3 animate-in shake-in duration-300" role="alert">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{rescheduleError}</span>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-500 hover:bg-slate-50 transition-all focus:outline-none"
+                  onClick={() => setRescheduleModalOpen(false)}
+                  disabled={rescheduleSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={rescheduleSubmitting || !rescheduleSlot || !rescheduleDate}
+                  className="px-5 py-2.5 rounded-xl bg-primary text-xs font-bold text-white shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all disabled:opacity-50 active:scale-95 focus:outline-none"
+                  onClick={handleConfirmReschedule}
+                >
+                  {rescheduleSubmitting ? "Rescheduling..." : "Confirm New Slot"}
                 </button>
               </div>
             </div>

@@ -4,6 +4,7 @@ import { Doctor } from '../models/Doctor.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { sendResponse } from '../utils/response.js';
 import AppError from '../utils/AppError.js';
+import { Notification } from '../models/Notification.js';
 
 /**
  * @desc Create or update a prescription for an appointment
@@ -52,6 +53,14 @@ export const createPrescription = asyncHandler(async (req, res) => {
   // 5. Automatically transition appointment status to prescription_shared
   appointment.status = 'prescription_shared';
   await appointment.save();
+
+  Notification.create({
+    userId: appointment.patientId,
+    title: 'Prescription Shared',
+    message: `Dr. ${doctor.userId.name || 'Your doctor'} has shared a new prescription and medical record.`,
+    type: 'prescription',
+    referenceId: medicalRecord._id
+  }).catch(err => console.error('In-app notification failed', err));
 
   return sendResponse(res, 201, "Prescription shared successfully", { medicalRecord });
 });

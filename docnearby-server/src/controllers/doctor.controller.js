@@ -80,12 +80,16 @@ export const getDoctorSlots = asyncHandler(async (req, res) => {
   const daySlots = (doctor.availableSlots || []).filter((s) => s.day === day);
   const generated = [];
 
-  for (const s of daySlots) {
-    const start = minutesFromHHMM(s.startTime);
-    const end = minutesFromHHMM(s.endTime);
-    const dur = Number(s.slotDuration || 30);
-    if (start === null || end === null) continue;
-    for (let t = start; t + dur <= end; t += dur) generated.push(formatAMPM(t));
+  const isBlocked = Array.isArray(doctor.blockedDates) && doctor.blockedDates.includes(dateStr);
+
+  if (!isBlocked) {
+    for (const s of daySlots) {
+      const start = minutesFromHHMM(s.startTime);
+      const end = minutesFromHHMM(s.endTime);
+      const dur = Number(s.slotDuration || 30);
+      if (start === null || end === null) continue;
+      for (let t = start; t + dur <= end; t += dur) generated.push(formatAMPM(t));
+    }
   }
 
   const start = new Date(`${dateStr}T00:00:00.000`);
@@ -108,6 +112,7 @@ export const getDoctorSlots = asyncHandler(async (req, res) => {
     date: dateStr, 
     day, 
     available, 
-    booked: Array.from(bookedSet) 
+    booked: Array.from(bookedSet),
+    isBlocked: !!isBlocked
   });
 });

@@ -10,6 +10,7 @@ import {
   requestPasswordReset,
   resetPassword,
   validateResetToken,
+  updateProfile,
 } from "../controllers/auth.controller.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import validate from "../middleware/validate.middleware.js";
@@ -54,5 +55,6 @@ router.post("/login/resend-otp", authLimiter, (req, res, next) => {
 
 router.post("/logout", logout);
 router.get("/me", requireAuth, me);
+router.patch("/profile", requireAuth, updateProfile);
 
 export default router;

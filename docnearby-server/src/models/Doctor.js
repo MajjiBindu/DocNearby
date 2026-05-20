@@ -34,6 +34,7 @@ const doctorSchema = new mongoose.Schema(
     reviewCount: { type: Number, default: 0 },
     rejectedAt: { type: Date },
     rejectionReason: { type: String },
+    blockedDates: { type: [String], default: [] },
   },
   { versionKey: false },
 )

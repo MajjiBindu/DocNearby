@@ -10,7 +10,7 @@ const appointmentSchema = new mongoose.Schema(
     location: { type: String },
     date: { type: Date, required: true },
     slot: { type: String, required: true },
-    status: { type: String, enum: APPOINTMENT_STATUSES, default: 'pending' },
+    status: { type: String, enum: APPOINTMENT_STATUSES, default: 'booked' },
     createdAt: { type: Date, default: Date.now },
   },
   { versionKey: false },
