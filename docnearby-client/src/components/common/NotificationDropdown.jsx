@@ -34,7 +34,9 @@ export default function NotificationDropdown() {
   };
 
   useEffect(() => {
-    fetchUnreadCount();
+    setTimeout(() => {
+      fetchUnreadCount();
+    }, 0);
     const interval = setInterval(fetchUnreadCount, 30000); // Poll every 30s
     return () => clearInterval(interval);
   }, []);

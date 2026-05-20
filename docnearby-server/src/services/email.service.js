@@ -1,9 +1,6 @@
 import nodemailer from "nodemailer";
 
 function createTransporter() {
-  console.log("EMAIL_USER:", process.env.EMAIL_USER);
-  console.log("EMAIL_PASS exists:", !!process.env.EMAIL_PASS);
-
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
 

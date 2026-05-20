@@ -151,13 +151,11 @@ export const requestPasswordReset = asyncHandler(async (req, res) => {
 
   const resetToken =
     await authService.createPasswordResetToken(normalizedEmail);
-  console.log("Generated reset token:", resetToken);
 
   const frontendUrl = (process.env.CLIENT_URL || "http://localhost:5173")
     .trim()
     .replace(/\/$/, "");
   const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
-  console.log("Reset URL being sent:", resetUrl);
 
   if (resetToken) {
     await emailService.sendPasswordResetEmail(normalizedEmail, {

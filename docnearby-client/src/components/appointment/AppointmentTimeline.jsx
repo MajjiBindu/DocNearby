@@ -80,7 +80,6 @@ const AppointmentTimeline = memo(({ status }) => {
           {STEPS.map((step, idx) => {
             const isCompleted = idx < currentStepIndex || (idx === currentStepIndex && currentStepIndex === STEPS.length - 1);
             const isActive = idx === currentStepIndex && !isCompleted;
-            const isUpcoming = idx > currentStepIndex;
 
             return (
               <div key={step.id} className="flex flex-col items-center flex-1 text-center group">

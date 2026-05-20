@@ -6,14 +6,12 @@ import CalendarPicker from "../components/appointment/CalendarPicker.jsx";
 import Modal from "../components/common/Modal.jsx";
 import SEO from "../components/common/SEO.jsx";
 import { appointmentApi, prescriptionApi, medicalRecordApi, authApi, doctorApi } from "../services/api.js";
-import translations from "../utils/i18n.js";
 import { isUpcoming, isPast, isCancellable } from "../utils/appointmentUtils.js";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import { DashboardStatCard, DashboardWidget, DashboardTabs } from "../components/dashboard/DashboardComponents.jsx";
 
 export default function PatientDashboard() {
   const navigate = useNavigate();
-  const [lang] = useState(() => localStorage.getItem("dn_lang") || "en");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [appointments, setAppointments] = useState([]);
@@ -21,7 +19,6 @@ export default function PatientDashboard() {
   const [appointmentSubTab, setAppointmentSubTab] = useState("upcoming");
   const [modalOpen, setModalOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState(null);
-  const [prescriptions, setPrescriptions] = useState([]);
 
   // Reschedule state
   const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
@@ -98,14 +95,12 @@ export default function PatientDashboard() {
     // Defer loading state to avoid cascading render warning
     if (showLoading) Promise.resolve().then(() => setLoading(true));
     try {
-      const [apptRes, rxRes] = await Promise.all([
+      const [apptRes] = await Promise.all([
         appointmentApi.patient(),
         prescriptionApi.patient()
       ]);
       const list = apptRes?.data?.appointments || (Array.isArray(apptRes) ? apptRes : []);
       setAppointments(list);
-      const rxList = rxRes?.data?.prescriptions || [];
-      setPrescriptions(rxList);
     } catch (e) {
       if (showLoading) setError(e?.message || "Failed to load clinical data");
     } finally {
@@ -114,7 +109,9 @@ export default function PatientDashboard() {
   }, []);
 
   useEffect(() => {
-    loadAppointments(true);
+    setTimeout(() => {
+      loadAppointments(true);
+    }, 0);
     const interval = setInterval(() => {
       loadAppointments(false); // poll silently
     }, 10000);
@@ -463,7 +460,7 @@ export default function PatientDashboard() {
       };
       await authApi.updateProfile(payload);
       setProfileMessage("Profile updated successfully!");
-    } catch (e) {
+    } catch {
       setProfileMessage("Failed to update profile");
     } finally {
       setSavingProfile(false);

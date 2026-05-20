@@ -1,8 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import SEO from "../components/common/SEO.jsx";
 import { appointmentApi, doctorApi, clinicApi, prescriptionApi, medicalRecordApi } from "../services/api.js";
-import { LANGUAGES, SPECIALTIES } from "../utils/constants.js";
-import translations from "../utils/i18n.js";
+import { SPECIALTIES } from "../utils/constants.js";
 import Modal from "../components/common/Modal.jsx";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import { DashboardStatCard, DashboardWidget } from "../components/dashboard/DashboardComponents.jsx";
@@ -20,7 +19,6 @@ import {
 } from "recharts";
 
 export default function DoctorDashboard() {
-  const [lang] = useState(() => localStorage.getItem("dn_lang") || "en");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [appointments, setAppointments] = useState([]);
@@ -44,7 +42,6 @@ export default function DoctorDashboard() {
   
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingAvailability, setSavingAvailability] = useState(false);
-  const [availabilityError, setAvailabilityError] = useState("");
   const [toast, setToast] = useState("");
   const [toastType, setToastType] = useState("success");
 
@@ -195,7 +192,6 @@ export default function DoctorDashboard() {
   };
 
   const DAY_OPTIONS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const t = translations[lang];
 
   const loadData = useCallback(async (showLoading = true) => {
     // Defer loading state to avoid cascading render warning
@@ -240,7 +236,7 @@ export default function DoctorDashboard() {
         }));
         setAvailabilityRows(initialRows.length ? initialRows : [{ day: "Mon", startTime: "09:00", endTime: "17:00", slotDuration: 30, clinicName: "", location: "" }]);
       }
-    } catch (e) {
+    } catch {
       if (showLoading) setError("Failed to synchronize clinical data");
     } finally {
       if (showLoading) setLoading(false);
@@ -382,7 +378,7 @@ export default function DoctorDashboard() {
       loadData();
       setToast(`Consultation marked as ${status}`);
       setToastType("success");
-    } catch (e) {
+    } catch {
       setToast("Failed to update status");
       setToastType("error");
     }
@@ -390,7 +386,6 @@ export default function DoctorDashboard() {
 
   const saveAvailability = async () => {
     setSavingAvailability(true);
-    setAvailabilityError("");
     try {
       const payload = { availableSlots: availabilityRows };
       await doctorApi.updateAvailability(doctor._id, payload);
@@ -398,7 +393,7 @@ export default function DoctorDashboard() {
       setToastType("success");
       loadData();
     } catch (e) {
-      setAvailabilityError(e?.response?.data?.message || "Protocol update failed");
+      setToast(e?.response?.data?.message || "Protocol update failed");
       setToastType("error");
     } finally {
       setSavingAvailability(false);

@@ -62,8 +62,10 @@ export default function Search() {
   useEffect(() => {
     const s = sp.get("specialty");
     if (s) {
-      setFilters(prev => ({ ...prev, specialty: s }));
-      setQuery(s);
+      setTimeout(() => {
+        setFilters(prev => ({ ...prev, specialty: s }));
+        setQuery(s);
+      }, 0);
     }
   }, [sp, setQuery]);
 
@@ -97,7 +99,9 @@ export default function Search() {
 
   // Run search when filters or coordinates change
   useEffect(() => {
-    executeSearch();
+    setTimeout(() => {
+      executeSearch();
+    }, 0);
   }, [executeSearch]);
 
   // Handle outside click for suggestions

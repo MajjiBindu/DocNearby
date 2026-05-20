@@ -16,12 +16,6 @@ export default function ResetPassword() {
   const navigate = useNavigate();
   const hasInvalidToken = !token || token === "undefined";
 
-  // Guard for missing reset token on page load
-  useEffect(() => {
-    if (hasInvalidToken) {
-      setError("Reset token is missing or invalid. Please request a new password reset link.");
-    }
-  }, [hasInvalidToken]);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -31,6 +25,15 @@ export default function ResetPassword() {
     hasInvalidToken ? "Reset token is missing or invalid." : "",
   );
   const [success, setSuccess] = useState("");
+
+  // Guard for missing reset token on page load
+  useEffect(() => {
+    if (hasInvalidToken) {
+      setTimeout(() => {
+        setError("Reset token is missing or invalid. Please request a new password reset link.");
+      }, 0);
+    }
+  }, [hasInvalidToken]);
 
   const validatePassword = () => {
     if (password.length < 8) return "Password must be at least 8 characters.";

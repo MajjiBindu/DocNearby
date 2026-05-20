@@ -2,23 +2,11 @@ import { useState, useEffect } from "react";
 import { useLocation } from "../context/LocationContext";
 import { clinicApi } from "../services/api";
 import ClinicCard from "../components/clinic/ClinicCard";
-import translations from "../utils/i18n";
 
 export default function ClinicList() {
   const { coords } = useLocation();
   const [clinics, setClinics] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [lang, setLang] = useState(() => localStorage.getItem("dn_lang") || "en");
-
-  useEffect(() => {
-    const handleLangChange = () => {
-      setLang(localStorage.getItem("dn_lang") || "en");
-    };
-    window.addEventListener("languageChange", handleLangChange);
-    return () => window.removeEventListener("languageChange", handleLangChange);
-  }, []);
-
-  const t = translations[lang];
 
   useEffect(() => {
     async function fetchClinics() {

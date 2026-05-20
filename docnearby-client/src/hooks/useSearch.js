@@ -26,7 +26,9 @@ export function useSearch() {
   // Debounced suggestions
   useEffect(() => {
     if (!query.trim()) {
-      setSuggestions([]);
+      setTimeout(() => {
+        setSuggestions([]);
+      }, 0);
       return;
     }
 

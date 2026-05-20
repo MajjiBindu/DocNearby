@@ -41,8 +41,10 @@ export default function NearbyLabs() {
     const baseParams = coords
       ? { lat: coords.lat, lng: coords.lng, radius }
       : {};
-    fetchLabs({ ...baseParams, testName: lastSearched });
-  }, [coords, radius]);
+    setTimeout(() => {
+      fetchLabs({ ...baseParams, testName: lastSearched });
+    }, 0);
+  }, [coords, radius, lastSearched]);
 
   const handleUseMyLocation = async () => {
     if (loading) return;

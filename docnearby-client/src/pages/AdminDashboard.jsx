@@ -12,7 +12,6 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
 
   const [users, setUsers] = useState([]);
-  const [setUserTotal] = useState(0);
   const [userPage] = useState(1);
   const [userSearch] = useState("");
   const [userRole] = useState("");
@@ -21,13 +20,9 @@ export default function AdminDashboard() {
   const [doctorSearch, setDoctorSearch] = useState("");
   const [debouncedDoctorSearch, setDebouncedDoctorSearch] = useState("");
 
-  const [setAppointments] = useState([]);
   const [selectedStatus] = useState("");
   const [appointmentPage] = useState(1);
-  const [setAppointmentTotal] = useState(0);
 
-  const [setReviews] = useState([]);
-  const [setReviewTotal] = useState(0);
   const [reviewPage] = useState(1);
 
   const [loading, setLoading] = useState(true);
@@ -162,25 +157,20 @@ export default function AdminDashboard() {
           limit: 15,
         });
         setUsers(usersRes?.data?.users || []);
-        setUserTotal(usersRes?.data?.total || 0);
       } else if (activeTab === "doctors") {
         const docRes = await adminApi.pendingDoctors();
         setPendingDoctors(docRes?.data?.doctors || []);
       } else if (activeTab === "appointments") {
-        const apptRes = await adminApi.allAppointments({
+        await adminApi.allAppointments({
           page: appointmentPage,
           limit: 15,
           status: selectedStatus,
         });
-        setAppointments(apptRes?.data?.appointments || []);
-        setAppointmentTotal(apptRes?.data?.total || 0);
       } else if (activeTab === "reviews") {
-        const reviewRes = await adminApi.reviews({
+        await adminApi.reviews({
           page: reviewPage,
           limit: 15,
         });
-        setReviews(reviewRes?.data?.reviews || []);
-        setReviewTotal(reviewRes?.data?.total || 0);
       }
     } catch {
       setError("Synchronicity failure in administrative records");

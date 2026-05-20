@@ -1,4 +1,4 @@
-export default function BookingForm({ date, setDate, slot, setSlot, onConfirm, disabled }) {
+export default function BookingForm({ date, setDate, onConfirm, disabled }) {
   return (
     <div className="space-y-6">
       <div>

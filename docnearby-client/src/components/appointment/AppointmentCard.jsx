@@ -6,9 +6,6 @@ import { reviewApi } from "../../services/api.js";
 import AppointmentTimeline from "./AppointmentTimeline.jsx";
 
 const AppointmentCard = memo(({ appt, onCancel, onComplete, onReschedule }) => {
-  const isPending = appt?.status === 'pending' || appt?.status === 'booked';
-  const isConfirmed = appt?.status === 'confirmed';
-
   const auth = useAuth();
   const user = auth?.user;
 

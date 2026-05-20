@@ -102,6 +102,7 @@ export function LocationProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useLocation() {
   const ctx = useContext(LocationContext);
   if (!ctx) throw new Error("useLocation must be used within LocationProvider");
