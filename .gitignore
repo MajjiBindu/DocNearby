@@ -4,4 +4,6 @@ dist
 build
 coverage
 .vscode
-logs
+*.log
+logs/
+lint-errors*.txt
