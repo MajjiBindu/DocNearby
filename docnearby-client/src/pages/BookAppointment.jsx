@@ -75,9 +75,19 @@ export default function BookAppointment() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, date]);
 
+  const isOnboardingComplete = useMemo(() => {
+    if (!doctor) return false;
+    const hasPhoto = !!doctor.profilePhoto;
+    const hasQualifications = Array.isArray(doctor.qualifications) && doctor.qualifications.length > 0;
+    const hasClinic = !!doctor.clinicId;
+    const hasAvailability = Array.isArray(doctor.availableSlots) && doctor.availableSlots.length > 0;
+    const hasBio = !!doctor.bio && doctor.bio.trim().length > 0;
+    return hasPhoto && hasQualifications && hasClinic && hasAvailability && hasBio;
+  }, [doctor]);
+
   const canSubmit = useMemo(
-    () => !!date && !!slot && !submitting,
-    [date, slot, submitting],
+    () => !!date && !!slot && !submitting && isOnboardingComplete,
+    [date, slot, submitting, isOnboardingComplete],
   );
 
   const confirm = async () => {
@@ -155,59 +165,78 @@ export default function BookAppointment() {
               </div>
             )}
 
-            {/* Interactive Availability Calendar */}
-            <div className="space-y-3">
-              <label className="text-[10px] font-black text-medical-text-light uppercase tracking-[0.2em] block">
-                1. Select Consultation Date
-              </label>
-              <CalendarPicker
-                selectedDate={date}
-                onSelectDate={(newDate) => {
-                  setDate(newDate);
-                  setSlot("");
-                  setMessage("");
-                }}
-                availableSlots={doctor?.availableSlots || []}
-              />
-            </div>
-
-            {/* Hourly Slot Selector */}
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <label className="text-[10px] font-black text-medical-text-light uppercase tracking-[0.2em]">
-                  2. Select Hourly Time Slot
-                </label>
-                {loadingSlots && (
-                  <div className="flex items-center gap-2 text-primary" role="status">
-                    <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                    <span className="text-[10px] font-bold">Checking availability...</span>
-                  </div>
-                )}
-              </div>
-
-              {date && (
-                <SlotPicker
-                  available={slotInfo.available}
-                  booked={slotInfo.booked}
-                  value={slot}
-                  onChange={(val) => {
-                    setSlot(val);
-                    setMessage("");
-                  }}
-                />
-              )}
-
-              {date && !loadingSlots && !slotInfo.available.length ? (
-                <div className="p-5 rounded-2xl bg-rose-50/50 border border-rose-100/50 text-center">
-                  <p className="text-xs text-rose-600 font-extrabold uppercase tracking-wider">
-                    Fully Booked
-                  </p>
-                  <p className="text-xs text-slate-500 font-medium mt-1">
-                    All consultation slots are currently reserved for this date. Please select another day.
+            {doctor && !isOnboardingComplete && (
+              <div className="p-6 rounded-3xl bg-rose-50 border border-rose-100/50 flex items-start gap-4 animate-in slide-in-from-top-4 duration-500">
+                <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center font-black shadow-lg shadow-rose-100 shrink-0">
+                  !
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-black text-rose-950 text-sm uppercase tracking-tight">Onboarding Check Incomplete</h4>
+                  <p className="text-xs text-rose-800 leading-relaxed font-semibold">
+                    Dr. {doctor.userId?.name || "Clinician"} has not finalized their professional profile. 
+                    Public booking will remain inactive until profile photo, qualifications, clinic, weekly slots, and biography are completed.
                   </p>
                 </div>
-              ) : null}
-            </div>
+              </div>
+            )}
+
+            {isOnboardingComplete && (
+              <>
+                {/* Interactive Availability Calendar */}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-medical-text-light uppercase tracking-[0.2em] block">
+                    1. Select Consultation Date
+                  </label>
+                  <CalendarPicker
+                    selectedDate={date}
+                    onSelectDate={(newDate) => {
+                      setDate(newDate);
+                      setSlot("");
+                      setMessage("");
+                    }}
+                    availableSlots={doctor?.availableSlots || []}
+                  />
+                </div>
+
+                {/* Hourly Slot Selector */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <label className="text-[10px] font-black text-medical-text-light uppercase tracking-[0.2em]">
+                      2. Select Hourly Time Slot
+                    </label>
+                    {loadingSlots && (
+                      <div className="flex items-center gap-2 text-primary" role="status">
+                        <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                        <span className="text-[10px] font-bold">Checking availability...</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {date && (
+                    <SlotPicker
+                      available={slotInfo.available}
+                      booked={slotInfo.booked}
+                      value={slot}
+                      onChange={(val) => {
+                        setSlot(val);
+                        setMessage("");
+                      }}
+                    />
+                  )}
+
+                  {date && !loadingSlots && !slotInfo.available.length ? (
+                    <div className="p-5 rounded-2xl bg-rose-50/50 border border-rose-100/50 text-center">
+                      <p className="text-xs text-rose-600 font-extrabold uppercase tracking-wider">
+                        Fully Booked
+                      </p>
+                      <p className="text-xs text-slate-500 font-medium mt-1">
+                        All consultation slots are currently reserved for this date. Please select another day.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              </>
+            )}
 
             {/* Action Buttons */}
             <div className="pt-4 border-t border-slate-100">

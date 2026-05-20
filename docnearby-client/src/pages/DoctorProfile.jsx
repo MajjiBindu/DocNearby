@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import SEO from "../components/common/SEO.jsx";
 import { doctorApi, reviewApi } from "../services/api.js";
@@ -43,6 +43,16 @@ export default function DoctorProfile() {
 
   const t = translations[lang];
   const doctorId = doctor?._id || id;
+
+  const isOnboardingComplete = useMemo(() => {
+    if (!doctor) return false;
+    const hasPhoto = !!doctor.profilePhoto;
+    const hasQualifications = Array.isArray(doctor.qualifications) && doctor.qualifications.length > 0;
+    const hasClinic = !!doctor.clinicId;
+    const hasAvailability = Array.isArray(doctor.availableSlots) && doctor.availableSlots.length > 0;
+    const hasBio = !!doctor.bio && doctor.bio.trim().length > 0;
+    return hasPhoto && hasQualifications && hasClinic && hasAvailability && hasBio;
+  }, [doctor]);
 
   const fetchReviews = useCallback(async () => {
     setFetchingReviews(true);
@@ -225,22 +235,30 @@ export default function DoctorProfile() {
               <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-12">
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
                   <div
-                    className="w-32 h-32 md:w-40 md:h-40 rounded-3xl bg-primary/10 flex items-center justify-center text-primary border-4 border-white shadow-xl"
+                    className="w-32 h-32 md:w-40 md:h-40 rounded-3xl bg-primary/10 flex items-center justify-center text-primary border-4 border-white shadow-xl overflow-hidden"
                     aria-hidden="true"
                   >
-                    <svg
-                      className="w-16 h-16 md:w-20 md:h-20"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    {doctor.profilePhoto ? (
+                      <img
+                        src={doctor.profilePhoto}
+                        alt={`Dr. ${doctor.userId?.name || "Clinician"}`}
+                        className="w-full h-full object-cover"
                       />
-                    </svg>
+                    ) : (
+                      <svg
+                        className="w-16 h-16 md:w-20 md:h-20"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                        />
+                      </svg>
+                    )}
                   </div>
                   <div className="text-center md:text-left space-y-4">
                     <div
@@ -298,12 +316,24 @@ export default function DoctorProfile() {
                       ₹{doctor.consultationFee ?? "—"}
                     </p>
                   </div>
-                  <button
-                    onClick={() => navigate(`/book/${doctorId}`)}
-                    className="btn-primary !px-12 !py-5 !text-xl w-full sm:w-auto focus-visible:ring-offset-2"
-                  >
-                    Book Appointment
-                  </button>
+                  {isOnboardingComplete ? (
+                    <button
+                      onClick={() => navigate(`/book/${doctorId}`)}
+                      className="btn-primary !px-12 !py-5 !text-xl w-full sm:w-auto focus-visible:ring-offset-2"
+                    >
+                      Book Appointment
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className="w-full sm:w-auto px-8 py-5 text-sm font-black text-rose-800 bg-rose-50 border border-rose-100 rounded-2xl cursor-not-allowed select-none flex items-center justify-center gap-2 animate-pulse"
+                    >
+                      <svg className="w-4 h-4 text-rose-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                      </svg>
+                      Booking Unavailable (Onboarding Incomplete)
+                    </button>
+                  )}
                 </div>
               </div>
             </article>
@@ -397,8 +427,22 @@ export default function DoctorProfile() {
               {/* Main Content: Reviews */}
               <section
                 className="lg:col-span-2 space-y-8"
-                aria-labelledby="reviews-heading"
               >
+                {/* Professional Biography */}
+                {doctor.bio && (
+                  <div className="medical-card p-8 space-y-4 animate-in fade-in duration-500">
+                    <h2 className="text-lg font-black text-secondary uppercase tracking-tight flex items-center gap-2.5">
+                      <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Professional Biography
+                    </h2>
+                    <p className="text-sm font-semibold text-slate-600 leading-relaxed whitespace-pre-wrap">
+                      {doctor.bio}
+                    </p>
+                  </div>
+                )}
+
                 <div className="medical-card p-8">
                   <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-100">
                     <h2

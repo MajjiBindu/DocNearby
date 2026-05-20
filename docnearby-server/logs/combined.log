@@ -408,3 +408,62 @@
 {"level":"warn","message":"Comment must be at least 5 characters","method":"POST","service":"docnearby-api","status":400,"timestamp":"2026-05-18 19:08:32","url":"/api/reviews"}
 {"level":"warn","message":"You have already reviewed this doctor","method":"POST","service":"docnearby-api","status":409,"timestamp":"2026-05-18 19:08:47","url":"/api/reviews"}
 {"level":"warn","message":"\"clinicId\" is not allowed to be empty","method":"PUT","service":"docnearby-api","status":400,"timestamp":"2026-05-18 19:10:12","url":"/api/doctors/6a0ae6579f26b242bcabaddf"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 21:42:46"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 21:42:47"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 21:42:47"}
+{"level":"warn","message":"You do not have permission to perform this action","method":"POST","service":"docnearby-api","status":403,"timestamp":"2026-05-18 21:45:40","url":"/api/appointments"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 21:50:02"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 21:50:03"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 21:50:03"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 21:50:06"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 21:50:06"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 21:50:06"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 21:50:10"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 21:50:10"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 21:50:10"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 21:50:15"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 21:50:15"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 21:50:15"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 21:50:21"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 21:50:22"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 21:50:22"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 21:53:23"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 21:53:23"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 21:53:23"}
+{"level":"warn","message":"User not found","method":"GET","service":"docnearby-api","status":404,"timestamp":"2026-05-18 21:54:51","url":"/api/auth/me"}
+{"level":"warn","message":"User not found","method":"GET","service":"docnearby-api","status":404,"timestamp":"2026-05-18 21:54:51","url":"/api/auth/me"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 21:55:22"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 21:55:22"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 21:55:23"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 21:55:23"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 21:55:23"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 21:55:23"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 21:55:30"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 21:55:30"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 21:55:31"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 21:55:31"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 21:55:31"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 21:55:31"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 21:55:42"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 21:55:42"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 21:55:43"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 21:55:43"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 21:55:43"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 21:55:43"}
+{"level":"info","message":"Login OTP requested: bindumadhavi6281@gmail.com","service":"docnearby-api","timestamp":"2026-05-18 21:56:46"}
+{"level":"info","message":"User logged in: bindumadhavi6281@gmail.com","service":"docnearby-api","timestamp":"2026-05-18 21:57:36"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-18 22:01:22"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-18 22:01:23"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-18 22:01:23"}
+{"level":"info","message":"Checking users collection indexes","service":"docnearby-api","timestamp":"2026-05-20 17:09:54"}
+{"level":"info","message":"User indexes synchronized","service":"docnearby-api","timestamp":"2026-05-20 17:09:54"}
+{"level":"info","message":"DocNearby server listening on http://localhost:5000","service":"docnearby-api","timestamp":"2026-05-20 17:09:55"}
+{"level":"warn","message":"User not found","method":"GET","service":"docnearby-api","status":404,"timestamp":"2026-05-20 17:10:28","url":"/api/auth/me"}
+{"level":"warn","message":"User not found","method":"GET","service":"docnearby-api","status":404,"timestamp":"2026-05-20 17:10:28","url":"/api/auth/me"}
+{"level":"info","message":"Login OTP requested: bindumadhavi6281@gmail.com","service":"docnearby-api","timestamp":"2026-05-20 17:10:50"}
+{"level":"info","message":"User logged in: bindumadhavi6281@gmail.com","service":"docnearby-api","timestamp":"2026-05-20 17:11:10"}
+{"level":"warn","message":"User not found","method":"GET","service":"docnearby-api","status":404,"timestamp":"2026-05-20 17:12:36","url":"/api/auth/me"}
+{"level":"warn","message":"User not found","method":"GET","service":"docnearby-api","status":404,"timestamp":"2026-05-20 17:12:36","url":"/api/auth/me"}
+{"level":"warn","message":"Invalid email or password","method":"POST","service":"docnearby-api","status":401,"timestamp":"2026-05-20 17:13:03","url":"/api/auth/login/request-otp"}
+{"level":"info","message":"Signup OTP requested: mbmadhavi060.btech2023@it.nitrr.ac.in","service":"docnearby-api","timestamp":"2026-05-20 17:14:05"}
+{"level":"info","message":"User registered and verified: mbmadhavi060.btech2023@it.nitrr.ac.in","service":"docnearby-api","timestamp":"2026-05-20 17:14:17"}

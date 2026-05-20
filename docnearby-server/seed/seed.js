@@ -171,6 +171,14 @@ async function main() {
     [78.0373, 15.8281],
   ]
 
+  const photos = [
+    'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=300',
+    'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=300',
+    'https://images.unsplash.com/photo-1594824813573-246434de83fb?auto=format&fit=crop&q=80&w=300',
+    'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=300',
+    'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=300'
+  ]
+
   const doctors = []
   for (let i = 0; i < doctorUsers.length; i++) {
     const clinic = randPick(clinics)
@@ -178,6 +186,8 @@ async function main() {
     doctors.push({
       userId: doctorUsers[i]._id,
       specialty: randPick(specialties),
+      profilePhoto: photos[i % photos.length],
+      bio: 'Experienced clinical specialist dedicated to providing compassionate, evidence-based care to optimize patient recovery and overall long-term wellness.',
       qualifications: ['MBBS', randPick(['MD', 'MS', 'DNB'])],
       languages: [randPick(languages), 'English'],
       consultationFee: randPick([300, 400, 500, 600]),

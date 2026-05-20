@@ -34,6 +34,9 @@ export default function DoctorDashboard() {
     consultationFee: "",
     languages: [],
     clinicId: "",
+    qualifications: "",
+    bio: "",
+    profilePhoto: "",
   });
   
   const [savingProfile, setSavingProfile] = useState(false);
@@ -41,6 +44,48 @@ export default function DoctorDashboard() {
   const [availabilityError, setAvailabilityError] = useState("");
   const [toast, setToast] = useState("");
   const [toastType, setToastType] = useState("success");
+
+  const onboardingSteps = useMemo(() => {
+    if (!doctor) return [];
+    return [
+      {
+        id: "photo",
+        label: "Upload Profile Photo",
+        desc: "Add a friendly professional photo to build patient trust.",
+        completed: !!doctor.profilePhoto,
+      },
+      {
+        id: "qualifications",
+        label: "Add Qualifications",
+        desc: "Add credentials (e.g. MBBS, MD) to verify your expertise.",
+        completed: Array.isArray(doctor.qualifications) && doctor.qualifications.length > 0,
+      },
+      {
+        id: "clinic",
+        label: "Add Clinic Details",
+        desc: "Affiliate with a clinic to receive physical bookings.",
+        completed: !!doctor.clinicId,
+      },
+      {
+        id: "availability",
+        label: "Set Availability Slots",
+        desc: "Define your active weekly consultation hours.",
+        completed: Array.isArray(doctor.availableSlots) && doctor.availableSlots.length > 0,
+      },
+      {
+        id: "bio",
+        label: "Complete Bio",
+        desc: "Write a short summary about your medical practice.",
+        completed: !!doctor.bio && doctor.bio.trim().length > 0,
+      },
+    ];
+  }, [doctor]);
+
+  const completionPercentage = useMemo(() => {
+    if (onboardingSteps.length === 0) return 0;
+    const completed = onboardingSteps.filter(s => s.completed).length;
+    return Math.round((completed / onboardingSteps.length) * 100);
+  }, [onboardingSteps]);
   const [prescribeTarget, setPrescribeTarget] = useState(null);
   const [rxModalOpen, setRxModalOpen] = useState(false);
   const [diagnosis, setDiagnosis] = useState("");
@@ -175,6 +220,9 @@ export default function DoctorDashboard() {
           consultationFee: docData.consultationFee != null ? String(docData.consultationFee) : "",
           languages: docData.languages || [],
           clinicId: docData.clinicId?._id || docData.clinicId || "",
+          qualifications: Array.isArray(docData.qualifications) ? docData.qualifications.join(", ") : "",
+          bio: docData.bio || "",
+          profilePhoto: docData.profilePhoto || "",
         });
         
         const initialRows = (docData.availableSlots || []).map((slot) => ({
@@ -488,14 +536,45 @@ export default function DoctorDashboard() {
                  <label htmlFor="prof-fee" className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Consultation Fee (₹)</label>
                  <input id="prof-fee" type="number" value={profileForm.consultationFee} onChange={(e) => setProfileForm({...profileForm, consultationFee: e.target.value})} className="medical-input !py-2.5 !text-xs focus:ring-primary" />
                </div>
+               <div className="space-y-1">
+                 <label htmlFor="prof-experience" className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Experience (Years)</label>
+                 <input id="prof-experience" type="number" value={profileForm.experience} onChange={(e) => setProfileForm({...profileForm, experience: e.target.value})} className="medical-input !py-2.5 !text-xs focus:ring-primary" />
+               </div>
+               <div className="space-y-1">
+                 <label htmlFor="prof-qualifications" className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Qualifications (comma separated)</label>
+                 <input id="prof-qualifications" type="text" placeholder="e.g. MBBS, MD" value={profileForm.qualifications} onChange={(e) => setProfileForm({...profileForm, qualifications: e.target.value})} className="medical-input !py-2.5 !text-xs focus:ring-primary" />
+               </div>
+
+               <div className="space-y-1">
+                 <label htmlFor="prof-photo" className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Profile Photo URL</label>
+                 <input id="prof-photo" type="text" placeholder="e.g. https://domain.com/photo.jpg" value={profileForm.profilePhoto} onChange={(e) => setProfileForm({...profileForm, profilePhoto: e.target.value})} className="medical-input !py-2.5 !text-xs focus:ring-primary" />
+               </div>
+               <div className="space-y-1">
+                 <label htmlFor="prof-bio" className="text-[10px] font-black text-medical-text-light uppercase tracking-widest">Professional Bio</label>
+                 <textarea id="prof-bio" rows={3} placeholder="Write a short summary about your medical practice..." value={profileForm.bio} onChange={(e) => setProfileForm({...profileForm, bio: e.target.value})} className="medical-input !py-2.5 !text-xs focus:ring-primary resize-none" />
+               </div>
                <button onClick={async () => {
                  setSavingProfile(true);
                  try { 
-                   await doctorApi.update(doctor._id, profileForm); 
+                   const parsedQualifications = profileForm.qualifications
+                     ? profileForm.qualifications.split(",").map(q => q.trim()).filter(Boolean)
+                     : [];
+                   const payload = {
+                     specialty: profileForm.specialty,
+                     experience: Number(profileForm.experience),
+                     consultationFee: Number(profileForm.consultationFee),
+                     languages: profileForm.languages,
+                     clinicId: profileForm.clinicId || null,
+                     qualifications: parsedQualifications,
+                     bio: profileForm.bio,
+                     profilePhoto: profileForm.profilePhoto,
+                   };
+                   await doctorApi.update(doctor._id, payload); 
                    setToast("Profile synchronized"); 
                    setToastType("success");
+                   loadData();
                  } catch(e) { 
-                   setToast("Sync failed"); 
+                   setToast(e?.response?.data?.message || e?.message || "Sync failed"); 
                    setToastType("error");
                  } finally { 
                    setSavingProfile(false); 
@@ -843,6 +922,107 @@ export default function DoctorDashboard() {
           </div>
         ) : (
           <div className="focus:outline-none">
+            {/* Onboarding Checklist Card */}
+            {doctor && completionPercentage < 100 && (
+              <div className="medical-card p-6 md:p-8 border-amber-100 bg-amber-50/30 mb-8 space-y-6 animate-in slide-in-from-top-4 duration-500">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-black text-secondary uppercase tracking-tight flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+                      Clinician Setup & Onboarding Progress
+                    </h3>
+                    <p className="text-xs font-semibold text-medical-text-light uppercase tracking-wide">
+                      Complete your profile checklist to activate public patient booking.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-2xl font-black text-amber-600">{completionPercentage}%</span>
+                    <span className="text-[10px] font-black bg-amber-100 text-amber-800 px-3 py-1 rounded-xl uppercase tracking-widest">
+                      Incomplete
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                <div className="h-3 rounded-full bg-slate-200/80 overflow-hidden relative shadow-inner">
+                  <div
+                    className="absolute top-0 left-0 h-full rounded-full bg-amber-500 shadow-sm transition-all duration-700 ease-out"
+                    style={{ width: `${completionPercentage}%` }}
+                  />
+                </div>
+
+                {/* Checklist Steps Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 pt-2">
+                  {onboardingSteps.map((step) => (
+                    <div
+                      key={step.id}
+                      className={`p-4 rounded-2xl border transition-all flex flex-col justify-between h-full ${
+                        step.completed
+                          ? "bg-emerald-50/50 border-emerald-100/50 text-emerald-800"
+                          : "bg-white border-slate-100 text-slate-500 hover:border-slate-200"
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[9px] font-black uppercase tracking-wider ${step.completed ? "text-emerald-600" : "text-slate-400"}`}>
+                            Step
+                          </span>
+                          {step.completed ? (
+                            <svg className="w-4 h-4 text-emerald-600 fill-emerald-100" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-200" />
+                          )}
+                        </div>
+                        <h4 className="font-extrabold text-xs tracking-tight mt-1">{step.label}</h4>
+                        <p className="text-[10px] leading-relaxed opacity-80 font-medium">{step.desc}</p>
+                      </div>
+                      
+                      {!step.completed && (
+                        <button
+                          onClick={() => {
+                            setActiveTab("availability");
+                            setTimeout(() => {
+                              if (step.id === "availability") {
+                                document.getElementById("availability")?.scrollIntoView({ behavior: "smooth" });
+                              } else {
+                                document.getElementById("prof-qualifications")?.scrollIntoView({ behavior: "smooth" });
+                              }
+                            }, 100);
+                          }}
+                          className="mt-3 text-[9px] font-black text-amber-600 uppercase tracking-widest hover:underline text-left focus:outline-none"
+                        >
+                          Complete Step →
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {doctor && completionPercentage === 100 && (
+              <div className="medical-card p-6 border-emerald-100 bg-emerald-50/20 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in duration-500">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-black shadow-lg shadow-emerald-100">
+                    ✓
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-secondary uppercase tracking-tight">
+                      Onboarding Checklist Completed
+                    </h3>
+                    <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mt-0.5">
+                      Your clinical profile is fully setup. Public patient booking is active!
+                    </p>
+                  </div>
+                </div>
+                <div className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-3 py-1 rounded-xl uppercase tracking-widest">
+                  Active Profile
+                </div>
+              </div>
+            )}
+
             {activeTab === 'schedule' && renderSchedule()}
             {activeTab === 'availability' && renderAvailability()}
             {activeTab === 'analytics' && renderAnalytics()}

@@ -124,7 +124,7 @@ export const update = async (id, data, user) => {
     throw new AppError('Forbidden', 403);
   }
 
-  const allowed = ["specialty", "qualifications", "languages", "consultationFee", "experience", "clinicId", "availableSlots"];
+  const allowed = ["specialty", "qualifications", "languages", "consultationFee", "experience", "clinicId", "availableSlots", "profilePhoto", "bio"];
   allowed.forEach(k => {
     if (data[k] !== undefined) doctor[k] = data[k];
   });

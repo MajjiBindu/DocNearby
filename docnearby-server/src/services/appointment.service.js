@@ -17,6 +17,17 @@ export const create = async (patientData, appointmentData) => {
   const doctor = await Doctor.findById(doctorId);
   if (!doctor) throw new AppError('Doctor not found', 404);
 
+  // Validate onboarding completeness before allowing bookings
+  const hasPhoto = !!doctor.profilePhoto;
+  const hasQualifications = Array.isArray(doctor.qualifications) && doctor.qualifications.length > 0;
+  const hasClinic = !!doctor.clinicId;
+  const hasAvailability = Array.isArray(doctor.availableSlots) && doctor.availableSlots.length > 0;
+  const hasBio = !!doctor.bio && doctor.bio.trim().length > 0;
+
+  if (!(hasPhoto && hasQualifications && hasClinic && hasAvailability && hasBio)) {
+    throw new AppError('Doctor onboarding is incomplete. Booking is disabled.', 400);
+  }
+
   const [yyyy, mm, dd] = date.split("-").map(Number);
   const appointmentDay = new Date(yyyy, mm - 1, dd).toLocaleDateString("en-US", { weekday: "short" });
   const selectedSlot = doctor.availableSlots?.find(s => s.day === appointmentDay);

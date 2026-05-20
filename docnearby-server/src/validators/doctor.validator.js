@@ -2,6 +2,8 @@ import Joi from 'joi';
 
 export const updateDoctorSchema = Joi.object({
   specialty: Joi.string().trim().min(2).max(100),
+  profilePhoto: Joi.string().allow("", null).trim(),
+  bio: Joi.string().allow("", null).trim(),
   qualifications: Joi.array().items(Joi.string().trim()),
   languages: Joi.array().items(Joi.string().trim()),
   consultationFee: Joi.number().min(0).max(100000),

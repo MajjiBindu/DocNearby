@@ -21,6 +21,8 @@ const doctorSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     specialty: { type: String, default: '' },
+    profilePhoto: { type: String, default: '' },
+    bio: { type: String, default: '' },
     qualifications: [{ type: String }],
     languages: [{ type: String }],
     consultationFee: { type: Number, default: 0 },
