@@ -20,3 +20,17 @@ export const getSuggestions = asyncHandler(async (req, res) => {
   return sendResponse(res, 200, "Suggestions fetched", { suggestions });
 });
 
+/**
+ * @desc Geocode location query via Nominatim
+ * @route GET /api/search/geocode
+ */
+export const geocode = asyncHandler(async (req, res) => {
+  const { q } = req.query;
+  if (!q) {
+    return sendResponse(res, 400, "Query is required");
+  }
+  const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
+  const data = await response.json();
+  return sendResponse(res, 200, "Geocoding successful", data);
+});
+

@@ -19,6 +19,16 @@ export const createReview = asyncHandler(async (req, res) => {
     throw new AppError('Rating must be between 1 and 5', 400);
   }
 
+  const hasCompletedAppointment = await Appointment.findOne({
+    patientId,
+    doctorId,
+    status: 'completed'
+  });
+
+  if (!hasCompletedAppointment) {
+    throw new AppError('You can only review doctors you have had a completed appointment with', 403, 'NO_COMPLETED_APPOINTMENT');
+  }
+
   const existing = await Review.findOne({ patientId, doctorId });
   if (existing) {
     throw new AppError('You have already reviewed this doctor', 409, 'ALREADY_REVIEWED');

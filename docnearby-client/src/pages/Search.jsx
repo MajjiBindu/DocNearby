@@ -129,10 +129,8 @@ export default function Search() {
     if (!locationInput.trim()) return;
     setGeocoding(true);
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationInput)}&limit=1`,
-      );
-      const data = await res.json();
+      const res = await searchApi.geocode(locationInput);
+      const data = res.data;
       if (data && data[0]) {
         setCoords({
           lat: parseFloat(data[0].lat),

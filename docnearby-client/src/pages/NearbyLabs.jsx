@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { labApi } from "../services/api.js";
+import { labApi, searchApi } from "../services/api.js";
 import { useLocation } from "../hooks/useLocation.js";
 import SEO from "../components/common/SEO.jsx";
 
@@ -67,10 +67,8 @@ export default function NearbyLabs() {
     if (!locationInput.trim()) return;
     setGeocoding(true);
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationInput)}&limit=1`,
-      );
-      const data = await res.json();
+      const res = await searchApi.geocode(locationInput);
+      const data = res.data;
       if (data && data[0]) {
         const next = {
           lat: parseFloat(data[0].lat),

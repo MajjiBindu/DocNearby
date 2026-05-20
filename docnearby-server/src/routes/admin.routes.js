@@ -6,6 +6,8 @@ import {
   deactivateUser,
   rejectDoctor,
   listAllUsers,
+  getPendingDoctors,
+  listAllReviews,
 } from '../controllers/admin.controller.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { requireRole } from '../middleware/role.middleware.js';
@@ -17,9 +19,11 @@ router.use(requireRole(['admin']));
 
 router.get('/stats', getAdminStats);
 router.get('/users', listAllUsers);
+router.get('/doctors/pending', getPendingDoctors);
 router.patch('/users/:id/deactivate', deactivateUser);
 router.patch('/doctors/:id/verify', verifyDoctor);
 router.patch('/doctors/:id/reject', rejectDoctor);
 router.get('/appointments', listAllAppointments);
+router.get('/reviews', listAllReviews);
 
 export default router;

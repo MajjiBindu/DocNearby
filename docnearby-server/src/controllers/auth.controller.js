@@ -17,18 +17,31 @@ const LOGIN_PURPOSE = "login";
 export const requestSignupOtp = asyncHandler(async (req, res) => {
   const { name, email, password, role } = req.body;
 
-  const existing = await userService.findByEmail(email);
+  let existing = await userService.findByEmail(email);
   if (existing) {
-    throw new AppError("Email is already registered", 409, "email_exists");
+    if (existing.isVerified) {
+      throw new AppError("Email is already registered", 409, "email_exists");
+    }
   }
 
   const passwordHash = await authService.hashPassword(password);
-  const session = await authService.requestOtp(SIGNUP_PURPOSE, email, {
-    name,
-    email,
-    passwordHash,
-    role,
-  });
+  
+  if (!existing) {
+    existing = await userService.createUser({
+      name,
+      email,
+      password: passwordHash,
+      role,
+      isVerified: false,
+    });
+  } else {
+    existing.name = name;
+    existing.password = passwordHash;
+    existing.role = role;
+    await existing.save();
+  }
+
+  const session = await authService.requestOtp(SIGNUP_PURPOSE, email);
 
   logger.info(`Signup OTP requested: ${email}`);
   return sendResponse(res, 200, "Signup OTP sent to email", {
@@ -45,27 +58,25 @@ export const verifySignupOtp = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
 
   const existing = await userService.findByEmail(email);
-  if (existing) {
+  if (existing && existing.isVerified) {
     throw new AppError("Email is already registered", 409, "email_exists");
   }
+  if (!existing) {
+    throw new AppError("User not found", 404, "user_not_found");
+  }
 
-  const payload = await authService.verifyOtp(SIGNUP_PURPOSE, email, otp);
+  await authService.verifyOtp(SIGNUP_PURPOSE, email, otp);
 
-  const user = await userService.createUser({
-    name: payload.name,
-    email: payload.email,
-    password: payload.passwordHash,
-    role: payload.role,
-    isVerified: true,
-  });
+  existing.isVerified = true;
+  await existing.save();
 
-  authService.consumeOtp(SIGNUP_PURPOSE, email);
-  const token = authService.signToken(user);
+  await authService.consumeOtp(SIGNUP_PURPOSE, email);
+  const token = authService.signToken(existing);
 
   res.cookie("dn_token", token, authService.cookieOptions);
 
   logger.info(`User registered and verified: ${email}`);
-  return sendResponse(res, 201, "Signup verified", { user, token });
+  return sendResponse(res, 201, "Signup verified", { user: existing, token });
 });
 
 /**
@@ -80,9 +91,11 @@ export const requestLoginOtp = asyncHandler(async (req, res) => {
     throw new AppError("Invalid email or password", 401, "invalid_credentials");
   }
 
-  const session = await authService.requestOtp(LOGIN_PURPOSE, email, {
-    userId: user._id.toString(),
-  });
+  if (user.isActive === false) {
+    throw new AppError("Account is deactivated", 403, "account_deactivated");
+  }
+
+  const session = await authService.requestOtp(LOGIN_PURPOSE, email);
 
   logger.info(`Login OTP requested: ${email}`);
   return sendResponse(res, 200, "Login OTP sent to email", {
@@ -98,13 +111,17 @@ export const requestLoginOtp = asyncHandler(async (req, res) => {
 export const verifyLoginOtp = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
 
-  const payload = await authService.verifyOtp(LOGIN_PURPOSE, email, otp);
+  await authService.verifyOtp(LOGIN_PURPOSE, email, otp);
 
-  const user = await userService.findById(payload.userId);
+  const user = await userService.findByEmail(email);
   if (!user) throw new AppError("User not found", 404, "user_not_found");
 
+  if (user.isActive === false) {
+    throw new AppError("Account is deactivated", 403, "account_deactivated");
+  }
+
   const token = authService.signToken(user);
-  authService.consumeOtp(LOGIN_PURPOSE, email);
+  await authService.consumeOtp(LOGIN_PURPOSE, email);
 
   res.cookie("dn_token", token, authService.cookieOptions);
 
@@ -214,16 +231,12 @@ export const resendOtp = asyncHandler(async (req, res) => {
     throw new AppError("Invalid OTP purpose", 400, "purpose_invalid");
   }
 
-  const existingSession = otpService.getOtpSession(purpose, email);
+  const existingSession = await otpService.getOtpSession(purpose, email);
   if (!existingSession) {
     throw new AppError("No active OTP request found", 404, "no_otp");
   }
 
-  const session = await authService.requestOtp(
-    purpose,
-    email,
-    existingSession.data,
-  );
+  const session = await authService.requestOtp(purpose, email);
 
   logger.info(`OTP resent: ${email} (${purpose})`);
   return sendResponse(res, 200, "OTP resent", {

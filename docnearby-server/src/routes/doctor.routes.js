@@ -28,9 +28,7 @@ router.get("/", listDoctors);
 router.get("/me", requireAuth, requireRole(["doctor", "admin"]), getMyDoctor);
 router.get("/:id", getDoctor);
 router.put("/:id/availability", requireAuth, requireRole(["doctor", "admin"]), validate(updateDoctorSchema), updateAvailability);
-router.patch("/:id/availability", requireAuth, requireRole(["doctor", "admin"]), validate(updateDoctorSchema), updateAvailability);
 router.put("/:id", requireAuth, requireRole(["doctor", "admin"]), validate(updateDoctorSchema), updateDoctor);
-router.patch("/:id", requireAuth, requireRole(["doctor", "admin"]), validate(updateDoctorSchema), updateDoctor);
 router.get("/:id/slots", validateDoctorIdParam, getDoctorSlots);
 
 export default router;

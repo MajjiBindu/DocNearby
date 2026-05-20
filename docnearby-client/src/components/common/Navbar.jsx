@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/useAuth.js";
+import { useAuth } from "../../hooks/useAuth.js";
 import translations from "../../utils/i18n.js";
 import LanguageSwitcher from "./LanguageSwitcher.jsx";
 import NotificationDropdown from "./NotificationDropdown.jsx";

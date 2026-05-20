@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import SlotPicker from "../components/appointment/SlotPicker.jsx";
 import CalendarPicker from "../components/appointment/CalendarPicker.jsx";
 import { appointmentApi, doctorApi } from "../services/api.js";
-import { useAuth } from "../context/useAuth.js";
+import { useAuth } from "../hooks/useAuth.js";
 
 function todayIso() {
   const d = new Date();

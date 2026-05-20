@@ -163,8 +163,9 @@ export const update = async (id, data, user) => {
 };
 
 export const globalSearch = async (params) => {
-  const { q, specialty, language, sort, lat, lng, radius = 10000 } = params;
+  const { q, specialty, language, sort, lat, lng, radius = 10000, page = 1, limit = 20 } = params;
   const maxFee = params.maxFee ? Number(params.maxFee) : null;
+  const skip = (Number(page) - 1) * Number(limit);
 
   const filterObj = {};
   if (specialty) filterObj.specialty = specialty;
@@ -195,12 +196,14 @@ export const globalSearch = async (params) => {
 
   // Fallback: If no lat/lng is provided by the client, return all matched doctors directly
   if (!lat || !lng) {
-    return await Doctor.find(filterObj)
+    const doctors = await Doctor.find(filterObj)
       .populate("userId", "name email role")
       .populate("clinicId", "name address city location")
       .select("specialty consultationFee experience rating reviewCount isVerified")
       .sort(sortObj)
-      .limit(50);
+      .skip(skip)
+      .limit(Number(limit));
+    return doctors;
   }
 
   // Geospatial Search: Find nearby clinics within radius
@@ -214,60 +217,35 @@ export const globalSearch = async (params) => {
   }).select("_id");
   const nearbyClinicIds = nearbyClinics.map(c => c._id);
 
-  // Run in-memory merging to bypass the Mongo restriction: $near is not allowed in compound $or
-  const [clinicDoctors, slotDoctors, fallbackDoctors] = await Promise.all([
-    // 1. Doctors associated with nearby clinics
-    nearbyClinicIds.length > 0
-      ? Doctor.find({
-          ...filterObj,
-          clinicId: { $in: nearbyClinicIds },
-        })
-          .populate("userId", "name email role")
-          .populate("clinicId", "name address city location")
-          .select("specialty consultationFee experience rating reviewCount isVerified")
-          .sort(sortObj)
-          .limit(50)
-      : [],
-
-    // 2. Doctors with slots having coordinates near [lng, lat]
-    Doctor.find({
-      ...filterObj,
+  // Combine into a single DB query using $or to avoid in-memory deduplication
+  const geoOrClauses = [
+    { clinicId: { $in: nearbyClinicIds } },
+    {
       "availableSlots.coordinates": {
         $near: {
           $geometry: { type: "Point", coordinates: [Number(lng), Number(lat)] },
           $maxDistance: Number(radius),
         },
       },
-    })
-      .populate("userId", "name email role")
-      .populate("clinicId", "name address city location")
-      .select("specialty consultationFee experience rating reviewCount isVerified")
-      .sort(sortObj)
-      .limit(50),
-
-    // 3. Fallback: Doctors with slots but NO clinicId and NO slot coordinates
-    Doctor.find({
-      ...filterObj,
+    },
+    {
       clinicId: { $exists: false },
       "availableSlots.coordinates": { $exists: false },
       "availableSlots.0": { $exists: true },
-    })
-      .populate("userId", "name email role")
-      .populate("clinicId", "name address city location")
-      .select("specialty consultationFee experience rating reviewCount isVerified")
-      .sort(sortObj)
-      .limit(50),
-  ]);
+    }
+  ];
 
-  const allResults = [...clinicDoctors, ...slotDoctors, ...fallbackDoctors];
-  const seenIds = new Set();
-  const deduplicated = allResults.filter((d) => {
-    if (seenIds.has(String(d._id))) return false;
-    seenIds.add(String(d._id));
-    return true;
-  });
+  const finalQuery = { ...filterObj, $or: filterObj.$or ? [{ $or: filterObj.$or }, { $or: geoOrClauses }] : geoOrClauses };
 
-  return deduplicated.slice(0, 50);
+  const deduplicated = await Doctor.find(finalQuery)
+    .populate("userId", "name email role")
+    .populate("clinicId", "name address city location")
+    .select("specialty consultationFee experience rating reviewCount isVerified")
+    .sort(sortObj)
+    .skip(skip)
+    .limit(Number(limit));
+
+  return deduplicated;
 };
 
 export const getAutocompleteSuggestions = async (q) => {

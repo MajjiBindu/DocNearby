@@ -105,3 +105,40 @@ export const listAllAppointments = asyncHandler(async (req, res) => {
   const results = await adminService.listAllAppointments(query, { page, limit });
   return sendResponse(res, 200, "Appointments fetched", results);
 });
+
+/**
+ * @desc Get pending doctors
+ * @route GET /api/admin/doctors/pending
+ */
+export const getPendingDoctors = asyncHandler(async (req, res) => {
+  const doctors = await Doctor.find({ isVerified: false, rejectedAt: null })
+    .populate("userId", "name email role")
+    .sort({ createdAt: -1 });
+  return sendResponse(res, 200, "Pending doctors fetched", { doctors });
+});
+
+/**
+ * @desc List all reviews
+ * @route GET /api/admin/reviews
+ */
+export const listAllReviews = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 20 } = req.query;
+  const skip = (page - 1) * limit;
+
+  const [reviews, total] = await Promise.all([
+    Review.find()
+      .populate('patientId', 'name')
+      .populate({ path: 'doctorId', populate: { path: 'userId', select: 'name' } })
+      .sort({ createdAt: -1 })
+      .skip(Number(skip))
+      .limit(Number(limit)),
+    Review.countDocuments()
+  ]);
+
+  return sendResponse(res, 200, "Reviews fetched", {
+    reviews,
+    total,
+    page: Number(page),
+    totalPages: Math.ceil(total / limit)
+  });
+});

@@ -1,6 +1,6 @@
 import { cloneElement } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/useAuth.js";
+import { useAuth } from "../hooks/useAuth.js";
 
 export default function DashboardLayout({
   children,

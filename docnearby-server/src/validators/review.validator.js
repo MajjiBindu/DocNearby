@@ -10,7 +10,5 @@ export const createReviewSchema = Joi.object({
     'number.max': 'Rating cannot exceed 5',
     'any.required': 'Rating is required'
   }),
-  comment: Joi.string().trim().min(5).max(1000).allow('', null).optional().messages({
-    'string.min': 'Comment must be at least 5 characters'
-  })
+  comment: Joi.string().trim().max(500).allow('', null).optional()
 });

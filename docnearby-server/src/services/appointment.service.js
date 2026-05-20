@@ -18,6 +18,10 @@ export const create = async (patientData, appointmentData) => {
   const doctor = await Doctor.findById(doctorId);
   if (!doctor) throw new AppError('Doctor not found', 404);
 
+  if (!doctor.isVerified) {
+    throw new AppError('Doctor is not verified. Booking is not allowed.', 400);
+  }
+
   if (Array.isArray(doctor.blockedDates) && doctor.blockedDates.includes(date)) {
     throw new AppError('Doctor is on leave or unavailable on this date', 400, 'doctor_blocked');
   }
@@ -36,6 +40,29 @@ export const create = async (patientData, appointmentData) => {
   const [yyyy, mm, dd] = date.split("-").map(Number);
   const appointmentDay = new Date(yyyy, mm - 1, dd).toLocaleDateString("en-US", { weekday: "short" });
   const selectedSlot = doctor.availableSlots?.find(s => s.day === appointmentDay);
+  if (!selectedSlot) {
+    throw new AppError('Doctor is not available on this day', 400);
+  }
+
+  const appointmentTime = new Date(`${date}T${slot}:00.000`);
+  if (isNaN(appointmentTime.getTime())) {
+    throw new AppError('Invalid slot format. Use HH:mm.', 400, 'invalid_slot');
+  }
+
+  if (appointmentTime < new Date()) {
+    throw new AppError('Cannot book past dates or times', 400, 'past_date');
+  }
+
+  const slotTimeMinutes = appointmentTime.getHours() * 60 + appointmentTime.getMinutes();
+  const [startHour, startMin] = selectedSlot.startTime.split(':').map(Number);
+  const startTimeMinutes = startHour * 60 + startMin;
+  const [endHour, endMin] = selectedSlot.endTime.split(':').map(Number);
+  const endTimeMinutes = endHour * 60 + endMin;
+
+  if (slotTimeMinutes < startTimeMinutes || slotTimeMinutes >= endTimeMinutes) {
+    throw new AppError('Slot is outside doctor availability time range', 400, 'invalid_slot_time');
+  }
+
   const hasSlotLocation = selectedSlot?.clinicName || selectedSlot?.location;
 
   if (!doctor.clinicId && !hasSlotLocation) {
@@ -196,6 +223,10 @@ export const reschedule = async (appointmentId, newDate, newSlot, user) => {
   const doctor = await Doctor.findById(appt.doctorId);
   if (!doctor) throw new AppError('Doctor not found', 404);
 
+  if (!doctor.isVerified) {
+    throw new AppError('Doctor is not verified. Rescheduling is not allowed.', 400);
+  }
+
   // Check doctor blocked dates
   if (Array.isArray(doctor.blockedDates) && doctor.blockedDates.includes(newDate)) {
     throw new AppError('Doctor is on leave or unavailable on this date', 400, 'doctor_blocked');
@@ -216,6 +247,29 @@ export const reschedule = async (appointmentId, newDate, newSlot, user) => {
   const [yyyy, mm, dd] = newDate.split("-").map(Number);
   const appointmentDay = new Date(yyyy, mm - 1, dd).toLocaleDateString("en-US", { weekday: "short" });
   const selectedSlot = doctor.availableSlots?.find(s => s.day === appointmentDay);
+  if (!selectedSlot) {
+    throw new AppError('Doctor is not available on this day', 400);
+  }
+
+  const appointmentTime = new Date(`${newDate}T${newSlot}:00.000`);
+  if (isNaN(appointmentTime.getTime())) {
+    throw new AppError('Invalid slot format. Use HH:mm.', 400, 'invalid_slot');
+  }
+
+  if (appointmentTime < new Date()) {
+    throw new AppError('Cannot book past dates or times', 400, 'past_date');
+  }
+
+  const slotTimeMinutes = appointmentTime.getHours() * 60 + appointmentTime.getMinutes();
+  const [startHour, startMin] = selectedSlot.startTime.split(':').map(Number);
+  const startTimeMinutes = startHour * 60 + startMin;
+  const [endHour, endMin] = selectedSlot.endTime.split(':').map(Number);
+  const endTimeMinutes = endHour * 60 + endMin;
+
+  if (slotTimeMinutes < startTimeMinutes || slotTimeMinutes >= endTimeMinutes) {
+    throw new AppError('Slot is outside doctor availability time range', 400, 'invalid_slot_time');
+  }
+
   const hasSlotLocation = selectedSlot?.clinicName || selectedSlot?.location;
 
   if (!doctor.clinicId && !hasSlotLocation) {

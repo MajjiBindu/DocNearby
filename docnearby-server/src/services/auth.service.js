@@ -77,8 +77,8 @@ export const resetPassword = async (user, password) => {
   await user.save();
 };
 
-export const requestOtp = async (purpose, email, data = {}) => {
-  const session = await otpService.createOtpSession(purpose, email, data);
+export const requestOtp = async (purpose, email) => {
+  const session = await otpService.createOtpSession(purpose, email);
 
   if (purpose === SIGNUP_PURPOSE) {
     await emailService.sendSignupOtpEmail(email, session.otp);
@@ -103,9 +103,7 @@ export const verifyOtp = async (purpose, email, otp) => {
       verdict.reason,
     );
   }
-  return verdict.data;
 };
-
-export const consumeOtp = (purpose, email) => {
-  otpService.consumeOtpSession(purpose, email);
+export const consumeOtp = async (purpose, email) => {
+  await otpService.consumeOtpSession(purpose, email);
 };

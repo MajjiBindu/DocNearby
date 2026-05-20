@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import OtpInput from "../components/auth/OtpInput.jsx";
 import SEO from "../components/common/SEO.jsx";
 import { authApi } from "../services/api.js";
-import { useAuth } from "../context/useAuth.js";
+import { useAuth } from "../hooks/useAuth.js";
 import { PATH_PAGE } from "../routes/paths.js";
 
 const initialForm = {

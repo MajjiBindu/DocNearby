@@ -130,6 +130,7 @@ export const searchApi = {
   suggestions: (q) => unwrap(api.get("/search/suggestions", { params: { q } })),
   trending: () => unwrap(api.get("/search/trending")),
   global: (params) => unwrap(api.get("/search/global", { params })),
+  geocode: (q) => unwrap(api.get("/search/geocode", { params: { q } })),
 };
 
 export const notificationApi = {

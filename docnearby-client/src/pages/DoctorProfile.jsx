@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import SEO from "../components/common/SEO.jsx";
 import { doctorApi, reviewApi } from "../services/api.js";
-import { useAuth } from "../context/useAuth.js";
+import { useAuth } from "../hooks/useAuth.js";
 import translations from "../utils/i18n.js";
 
 const formatReviewDate = (d) => {

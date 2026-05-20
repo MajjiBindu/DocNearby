@@ -1,14 +1,33 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+
 import AppointmentCard from "../components/appointment/AppointmentCard.jsx";
 import SlotPicker from "../components/appointment/SlotPicker.jsx";
 import CalendarPicker from "../components/appointment/CalendarPicker.jsx";
 import Modal from "../components/common/Modal.jsx";
 import SEO from "../components/common/SEO.jsx";
-import { appointmentApi, prescriptionApi, medicalRecordApi, authApi, doctorApi } from "../services/api.js";
-import { isUpcoming, isPast, isCancellable } from "../utils/appointmentUtils.js";
+
+import {
+  appointmentApi,
+  prescriptionApi,
+  medicalRecordApi,
+  authApi,
+  doctorApi
+} from "../services/api.js";
+
+import {
+  isUpcoming,
+  isPast,
+  isCancellable
+} from "../utils/appointmentUtils.js";
+
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
-import { DashboardStatCard, DashboardWidget, DashboardTabs } from "../components/dashboard/DashboardComponents.jsx";
+
+import {
+  DashboardStatCard,
+  DashboardWidget,
+  DashboardTabs
+} from "../components/dashboard/DashboardComponents.jsx";
 
 export default function PatientDashboard() {
   const navigate = useNavigate();
@@ -124,7 +143,7 @@ export default function PatientDashboard() {
   const stats = {
     total: appointments.length,
     upcoming: upcoming.length,
-    records: 12, // Mock count for reports + prescriptions
+    records: medicalRecords.length,
   };
 
   const menuItems = [
@@ -407,7 +426,17 @@ export default function PatientDashboard() {
     </div>
   );
 
-  const renderCareTeam = () => (
+  const renderCareTeam = () => {
+    const uniqueDoctorsMap = new Map();
+    appointments.forEach(appt => {
+      const doc = appt.doctorId;
+      if (doc && doc._id && !uniqueDoctorsMap.has(doc._id)) {
+        uniqueDoctorsMap.set(doc._id, doc);
+      }
+    });
+    const careTeam = Array.from(uniqueDoctorsMap.values());
+
+    return (
     <div className="animate-in slide-in-from-bottom-10 duration-700" role="tabpanel" aria-labelledby="tab-care-team">
       <DashboardWidget 
         title="My Care Team" 
@@ -415,16 +444,15 @@ export default function PatientDashboard() {
         icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>}
       >
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6" role="list">
-          {[1, 2, 3].map((i) => (
-            <div key={i} role="listitem" className="medical-card p-6 flex flex-col items-center text-center group hover:border-primary transition-all focus-within:ring-2 focus-within:ring-primary outline-none">
+          {careTeam.map((doc) => (
+            <div key={doc._id} role="listitem" className="medical-card p-6 flex flex-col items-center text-center group hover:border-primary transition-all focus-within:ring-2 focus-within:ring-primary outline-none">
               <div className="w-16 h-16 rounded-full bg-slate-100 mb-4 overflow-hidden" aria-hidden="true">
-                <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary font-black text-xl">D</div>
+                <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary font-black text-xl">{doc.userId?.name?.charAt(0) || "D"}</div>
               </div>
-              <h4 className="font-black text-secondary group-hover:text-primary transition-colors">Dr. Michael Chen</h4>
-              <p className="text-[10px] font-bold text-medical-text-light uppercase tracking-widest mt-1">Senior Cardiologist</p>
+              <h4 className="font-black text-secondary group-hover:text-primary transition-colors">Dr. {doc.userId?.name || "Clinician"}</h4>
+              <p className="text-[10px] font-bold text-medical-text-light uppercase tracking-widest mt-1">{doc.specialty || "Specialist"}</p>
               <div className="mt-4 flex items-center gap-2">
-                <button className="px-4 py-2 rounded-xl bg-slate-50 text-[10px] font-black text-secondary uppercase tracking-widest hover:bg-slate-100 transition-colors focus:outline-none">Profile</button>
-                <button onClick={() => navigate('/book/1')} className="px-4 py-2 rounded-xl bg-primary text-[10px] font-black text-white uppercase tracking-widest hover:bg-primary-dark transition-all focus:outline-none">Book</button>
+                <button onClick={() => navigate(`/book/${doc._id}`)} className="px-4 py-2 rounded-xl bg-primary text-[10px] font-black text-white uppercase tracking-widest hover:bg-primary-dark transition-all focus:outline-none">Book Again</button>
               </div>
             </div>
           ))}
@@ -440,7 +468,8 @@ export default function PatientDashboard() {
         </div>
       </DashboardWidget>
     </div>
-  );
+    );
+  };
 
   const saveProfile = async () => {
     setSavingProfile(true);
