@@ -227,11 +227,6 @@ export const globalSearch = async (params) => {
           $maxDistance: Number(radius),
         },
       },
-    },
-    {
-      clinicId: { $exists: false },
-      "availableSlots.coordinates": { $exists: false },
-      "availableSlots.0": { $exists: true },
     }
   ];
 
