@@ -18,7 +18,7 @@ Frontend for **DocNearby** — a location-based doctor & clinic finder with appo
 
 See `.env.example`:
 
-- `VITE_API_BASE_URL` (default: `http://localhost:5000/api`)
+- `VITE_API_URL` (e.g., `https://docnearby-backend.onrender.com`)
 
 ### Run locally
 
