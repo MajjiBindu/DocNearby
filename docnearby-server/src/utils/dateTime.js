@@ -29,3 +29,13 @@ export const formatAMPM = (totalMinutes) => {
   const h12 = ((h24 + 11) % 12) + 1;
   return `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`;
 };
+
+export const parseAMPM = (ampmString) => {
+  if (typeof ampmString !== 'string') return ampmString;
+  if (!ampmString.includes(" ")) return ampmString;
+  const [time, period] = ampmString.split(" ");
+  let [h, m] = time.split(":").map(Number);
+  if (period.toUpperCase() === "PM" && h < 12) h += 12;
+  if (period.toUpperCase() === "AM" && h === 12) h = 0;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+};

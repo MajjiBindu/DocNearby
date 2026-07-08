@@ -6,6 +6,7 @@ import {
   clinicApi,
   prescriptionApi,
   medicalRecordApi,
+  searchApi,
 } from "../services/api.js";
 import { SPECIALTIES } from "../utils/constants.js";
 import Modal from "../components/common/Modal.jsx";
@@ -14,6 +15,7 @@ import {
   DashboardStatCard,
   DashboardWidget,
 } from "../components/dashboard/DashboardComponents.jsx";
+import DoctorAppointmentCard from "../components/appointment/DoctorAppointmentCard.jsx";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -55,6 +57,11 @@ export default function DoctorDashboard() {
   const profileDirty = useRef(false);
   const [toast, setToast] = useState("");
   const [toastType, setToastType] = useState("success");
+
+  const [newClinicModalOpen, setNewClinicModalOpen] = useState(false);
+  const [newClinicForm, setNewClinicForm] = useState({ name: "", city: "" });
+  const [creatingClinic, setCreatingClinic] = useState(false);
+
 
   const onboardingSteps = useMemo(() => {
     if (!doctor) return [];
@@ -264,6 +271,34 @@ export default function DoctorDashboard() {
       .sort((a, b) => a.slot?.localeCompare(b.slot ?? ""));
   }, [appointments, todayStr]);
 
+  const pendingAppointments = useMemo(() => {
+    if (!Array.isArray(appointments)) return [];
+    return appointments
+      .filter((a) => a && (a.status === "pending" || a.status === "booked"))
+      .sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+        return a.slot?.localeCompare(b.slot ?? "");
+      });
+  }, [appointments]);
+
+  const upcomingAppointments = useMemo(() => {
+    if (!Array.isArray(appointments)) return [];
+    return appointments
+      .filter((a) => {
+        if (!a || !a.date || a.status === "pending" || a.status === "booked") return false;
+        const apptDateStr = getLocalISODate(new Date(a.date));
+        return apptDateStr > todayStr;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+        return a.slot?.localeCompare(b.slot ?? "");
+      });
+  }, [appointments, todayStr]);
+
   const stats = useMemo(() => {
     const totalCount = Array.isArray(appointments) ? appointments.length : 0;
     const completedCount = Array.isArray(appointments)
@@ -411,6 +446,27 @@ export default function DoctorDashboard() {
       onClick: () => setActiveTab("schedule"),
     },
     {
+      id: "upcoming",
+      label: "Upcoming Lineup",
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
+        </svg>
+      ),
+      active: activeTab === "upcoming",
+      onClick: () => setActiveTab("upcoming"),
+    },
+    {
       id: "patients",
       label: "Patient Roster",
       icon: (
@@ -508,6 +564,59 @@ export default function DoctorDashboard() {
     }
   };
 
+  const handleCreateClinic = async (e) => {
+    e.preventDefault();
+    if (!newClinicForm.name.trim()) {
+      setToast("Clinic name is required");
+      setToastType("error");
+      return;
+    }
+    setCreatingClinic(true);
+    try {
+      let location = undefined;
+      try {
+        const query = `${newClinicForm.name} ${newClinicForm.city}`.trim();
+        const geoRes = await searchApi.geocode(query);
+        const geoData = geoRes.data;
+        if (geoData && geoData[0]) {
+          location = {
+            type: "Point",
+            coordinates: [parseFloat(geoData[0].lon), parseFloat(geoData[0].lat)]
+          };
+        }
+      } catch (geoErr) {
+        console.error("Geocoding failed, proceeding without location:", geoErr);
+      }
+
+      const payload = {
+        name: newClinicForm.name.trim(),
+        city: newClinicForm.city.trim()
+      };
+      if (location) {
+        payload.location = location;
+      }
+
+      const res = await clinicApi.create(payload);
+      const newClinic = res.data?.clinic || res.clinic || res.data;
+      if (newClinic && newClinic._id) {
+        setClinics(prev => [...prev, newClinic]);
+        setProfileForm(prev => ({ ...prev, clinicId: newClinic._id }));
+        profileDirty.current = true;
+      } else {
+        loadData();
+      }
+      setToast("Custom clinic added successfully!");
+      setToastType("success");
+      setNewClinicModalOpen(false);
+      setNewClinicForm({ name: "", city: "" });
+    } catch (err) {
+      setToast(err?.message || "Failed to create clinic");
+      setToastType("error");
+    } finally {
+      setCreatingClinic(false);
+    }
+  };
+
   const saveAvailability = async () => {
     setSavingAvailability(true);
     try {
@@ -531,6 +640,28 @@ export default function DoctorDashboard() {
       role="tabpanel"
       aria-labelledby="tab-schedule"
     >
+      {pendingAppointments.length > 0 && (
+        <DashboardWidget
+          title="Pending Booking Requests"
+          subtitle={`${pendingAppointments.length} requests awaiting your confirmation`}
+          icon={
+            <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          }
+        >
+          <div className="space-y-4">
+            {pendingAppointments.map((a) => (
+              <DoctorAppointmentCard 
+                key={a._id}
+                appt={a}
+                onConfirm={() => handleStatusUpdate(a._id, "confirmed")}
+              />
+            ))}
+          </div>
+        </DashboardWidget>
+      )}
+
       <DashboardWidget
         title="Today's Clinical Lineup"
         subtitle={`${todays.length} confirmed encounters for ${todayStr}`}
@@ -550,7 +681,7 @@ export default function DoctorDashboard() {
           </svg>
         }
       >
-        <div className="overflow-x-auto">
+        <div className="space-y-4">
           {todays.length === 0 ? (
             <div
               className="py-20 text-center text-medical-text-light font-bold uppercase tracking-widest text-xs"
@@ -559,138 +690,65 @@ export default function DoctorDashboard() {
               No clinical encounters scheduled for today.
             </div>
           ) : (
-            <table
-              className="w-full text-left"
-              aria-label="Today's patient appointments"
-            >
-              <thead>
-                <tr className="border-b border-slate-50">
-                  <th
-                    className="py-4 text-[10px] font-black uppercase tracking-widest text-medical-text-light"
-                    scope="col"
-                  >
-                    Slot
-                  </th>
-                  <th
-                    className="py-4 text-[10px] font-black uppercase tracking-widest text-medical-text-light"
-                    scope="col"
-                  >
-                    Patient Entity
-                  </th>
-                  <th
-                    className="py-4 text-[10px] font-black uppercase tracking-widest text-medical-text-light"
-                    scope="col"
-                  >
-                    Status
-                  </th>
-                  <th
-                    className="py-4 text-[10px] font-black uppercase tracking-widest text-medical-text-light text-right"
-                    scope="col"
-                  >
-                    Verification
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {todays.map((a) => (
-                  <tr
-                    key={a._id}
-                    className="group hover:bg-slate-50/50 transition-colors"
-                  >
-                    <td className="py-4 font-black text-secondary">{a.slot}</td>
-                    <td className="py-4">
-                      <div className="font-extrabold text-secondary">
-                        {a.patientId?.name || "Verified Patient"}
-                      </div>
-                      <div className="text-[10px] font-bold text-medical-text-light uppercase tracking-tight">
-                        {a.patientId?.email}
-                      </div>
-                    </td>
-                    <td className="py-4">
-                      <span
-                        className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
-                          a.status === "confirmed"
-                            ? "bg-emerald-50 text-emerald-600"
-                            : a.status === "pending" || a.status === "booked"
-                              ? "bg-amber-50 text-amber-600"
-                              : a.status === "arrived"
-                                ? "bg-indigo-50 text-indigo-600"
-                                : a.status === "in_consultation"
-                                  ? "bg-blue-50 text-blue-600"
-                                  : a.status === "completed"
-                                    ? "bg-teal-50 text-teal-600"
-                                    : a.status === "prescription_shared"
-                                      ? "bg-emerald-100 text-emerald-800"
-                                      : a.status === "cancelled"
-                                        ? "bg-rose-50 text-rose-600"
-                                        : "bg-slate-50 text-slate-400"
-                        }`}
-                        aria-label={`Appointment status: ${a.status}`}
-                      >
-                        {a.status === "prescription_shared"
-                          ? "prescription shared"
-                          : a.status}
-                      </span>
-                    </td>
-                    <td className="py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        {(a.status === "pending" || a.status === "booked") && (
-                          <button
-                            onClick={() =>
-                              handleStatusUpdate(a._id, "confirmed")
-                            }
-                            className="px-3 py-1.5 rounded-xl bg-primary text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-primary/20 focus-visible:ring-offset-2"
-                            aria-label={`Confirm appointment for ${a.patientId?.name || "patient"}`}
-                          >
-                            Confirm
-                          </button>
-                        )}
-                        {a.status === "confirmed" && (
-                          <button
-                            onClick={() => handleStatusUpdate(a._id, "arrived")}
-                            className="px-3 py-1.5 rounded-xl bg-indigo-600 text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-indigo-200 focus-visible:ring-offset-2"
-                            aria-label={`Mark ${a.patientId?.name || "patient"} as arrived`}
-                          >
-                            Arrived
-                          </button>
-                        )}
-                        {a.status === "arrived" && (
-                          <button
-                            onClick={() =>
-                              handleStatusUpdate(a._id, "in_consultation")
-                            }
-                            className="px-3 py-1.5 rounded-xl bg-blue-600 text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-blue-200 focus-visible:ring-offset-2"
-                            aria-label={`Start consultation with ${a.patientId?.name || "patient"}`}
-                          >
-                            Start Consult
-                          </button>
-                        )}
-                        {a.status === "in_consultation" && (
-                          <button
-                            onClick={() =>
-                              handleStatusUpdate(a._id, "completed")
-                            }
-                            className="px-3 py-1.5 rounded-xl bg-emerald-500 text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-emerald-200 focus-visible:ring-offset-2"
-                            aria-label={`Mark appointment for ${a.patientId?.name || "patient"} as completed`}
-                          >
-                            Complete
-                          </button>
-                        )}
-                        {a.status === "completed" && (
-                          <button
-                            onClick={() => openPrescriptionModal(a)}
-                            className="px-3 py-1.5 rounded-xl bg-teal-500 text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-teal-200 focus-visible:ring-offset-2"
-                            aria-label={`Share prescription with ${a.patientId?.name || "patient"}`}
-                          >
-                            Share Prescr.
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            todays.map((a) => (
+              <DoctorAppointmentCard
+                key={a._id}
+                appt={a}
+                onConfirm={a.status === "pending" || a.status === "booked" ? () => handleStatusUpdate(a._id, "confirmed") : undefined}
+                onArrive={a.status === "confirmed" ? () => handleStatusUpdate(a._id, "arrived") : undefined}
+                onStartConsult={a.status === "arrived" ? () => handleStatusUpdate(a._id, "in_consultation") : undefined}
+                onComplete={a.status === "in_consultation" ? () => handleStatusUpdate(a._id, "completed") : undefined}
+                onSharePrescription={a.status === "completed" ? () => openPrescriptionModal(a) : undefined}
+              />
+            ))
+          )}
+        </div>
+      </DashboardWidget>
+    </div>
+  );
+  
+  const renderUpcoming = () => (
+    <div
+      className="space-y-6 animate-in fade-in duration-500"
+      role="tabpanel"
+      aria-labelledby="tab-upcoming"
+    >
+      <DashboardWidget
+        title="Upcoming Clinical Lineup"
+        subtitle={`${upcomingAppointments.length} confirmed encounters for future dates`}
+        icon={
+          <svg
+            className="w-5 h-5 text-indigo-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
+        }
+      >
+        <div className="space-y-4">
+          {upcomingAppointments.length === 0 ? (
+            <div className="py-20 text-center text-medical-text-light font-bold uppercase tracking-widest text-xs">
+              No upcoming appointments found.
+            </div>
+          ) : (
+            upcomingAppointments.map((a) => (
+              <DoctorAppointmentCard
+                key={a._id}
+                appt={a}
+                onConfirm={a.status === "pending" || a.status === "booked" ? () => handleStatusUpdate(a._id, "confirmed") : undefined}
+                onArrive={a.status === "confirmed" ? () => handleStatusUpdate(a._id, "arrived") : undefined}
+                onStartConsult={a.status === "arrived" ? () => handleStatusUpdate(a._id, "in_consultation") : undefined}
+                onComplete={a.status === "in_consultation" ? () => handleStatusUpdate(a._id, "completed") : undefined}
+                onSharePrescription={a.status === "completed" ? () => openPrescriptionModal(a) : undefined}
+              />
+            ))
           )}
         </div>
       </DashboardWidget>
@@ -1150,10 +1208,19 @@ export default function DoctorDashboard() {
                   <option value="">Independent / None</option>
                   {clinics.map((c) => (
                     <option key={c._id} value={c._id}>
-                      {c.name} ({c.city})
+                      {c.name} {c.city ? `(${c.city})` : ''}
                     </option>
                   ))}
                 </select>
+                <div className="mt-2 text-right">
+                  <button
+                    type="button"
+                    onClick={() => setNewClinicModalOpen(true)}
+                    className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline focus:outline-none"
+                  >
+                    + Add Custom Clinic
+                  </button>
+                </div>
               </div>
               <div className="space-y-1">
                 <label
@@ -2195,6 +2262,7 @@ export default function DoctorDashboard() {
             )}
 
             {activeTab === "schedule" && renderSchedule()}
+            {activeTab === "upcoming" && renderUpcoming()}
             {activeTab === "availability" && renderAvailability()}
             {activeTab === "leave" && renderLeave()}
             {activeTab === "analytics" && renderAnalytics()}
@@ -2557,6 +2625,62 @@ export default function DoctorDashboard() {
             </div>
           )}
         </div>
+      </Modal>
+
+      <Modal
+        open={newClinicModalOpen}
+        title="Add Custom Clinic"
+        onClose={() => setNewClinicModalOpen(false)}
+      >
+        <form onSubmit={handleCreateClinic} className="space-y-6 py-2">
+          <div className="space-y-4">
+            <div>
+              <label className="text-[10px] font-black text-medical-text-light uppercase tracking-widest block mb-2">
+                Clinic Name
+              </label>
+              <input
+                type="text"
+                value={newClinicForm.name}
+                onChange={(e) =>
+                  setNewClinicForm({ ...newClinicForm, name: e.target.value })
+                }
+                className="medical-input !py-3 text-sm focus:ring-primary w-full"
+                placeholder="e.g. My Private Clinic"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-medical-text-light uppercase tracking-widest block mb-2">
+                City / Location
+              </label>
+              <input
+                type="text"
+                value={newClinicForm.city}
+                onChange={(e) =>
+                  setNewClinicForm({ ...newClinicForm, city: e.target.value })
+                }
+                className="medical-input !py-3 text-sm focus:ring-primary w-full"
+                placeholder="e.g. Srikakulam"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setNewClinicModalOpen(false)}
+              className="px-6 py-3 rounded-2xl bg-slate-50 text-slate-500 font-bold hover:bg-slate-100 focus:outline-none"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={creatingClinic}
+              className="btn-primary !py-3 !px-8 shadow-lg shadow-primary/20 focus-visible:ring-offset-2"
+            >
+              {creatingClinic ? "Saving..." : "Add Clinic"}
+            </button>
+          </div>
+        </form>
       </Modal>
 
       {toast && (

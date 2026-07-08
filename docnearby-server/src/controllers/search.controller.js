@@ -29,7 +29,15 @@ export const geocode = asyncHandler(async (req, res) => {
   if (!q) {
     return sendResponse(res, 400, "Query is required");
   }
-  const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
+  const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`, {
+    headers: {
+      "User-Agent": "DocNearby/1.0 (bindumadhavi6281@gmail.com)",
+      "Accept-Language": "en"
+    }
+  });
+  if (!response.ok) {
+    return sendResponse(res, response.status, "Geocoding failed at source", []);
+  }
   const data = await response.json();
   return sendResponse(res, 200, "Geocoding successful", data);
 });

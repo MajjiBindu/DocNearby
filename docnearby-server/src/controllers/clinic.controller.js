@@ -2,6 +2,7 @@ import { Clinic } from '../models/Clinic.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { sendResponse } from '../utils/response.js';
 import AppError from '../utils/AppError.js';
+import { geocodeAddress } from '../services/doctor.service.js';
 
 /**
  * @desc List clinics with location search
@@ -44,6 +45,22 @@ export const getClinic = asyncHandler(async (req, res) => {
  * @route POST /api/clinics
  */
 export const createClinic = asyncHandler(async (req, res) => {
-  const clinic = await Clinic.create(req.body);
+  const payload = { ...req.body };
+  if (!payload.location || !payload.location.coordinates || (payload.location.coordinates[0] === 0 && payload.location.coordinates[1] === 0)) {
+    const addressToGeocode = `${payload.name || ''} ${payload.city || ''}`.trim();
+    if (addressToGeocode) {
+      const location = await geocodeAddress(addressToGeocode);
+      if (location) {
+        payload.location = location;
+      } else if (payload.city) {
+        // Fallback to just city
+        const cityLocation = await geocodeAddress(payload.city);
+        if (cityLocation) {
+          payload.location = cityLocation;
+        }
+      }
+    }
+  }
+  const clinic = await Clinic.create(payload);
   return sendResponse(res, 201, "Clinic created", { clinic });
 });

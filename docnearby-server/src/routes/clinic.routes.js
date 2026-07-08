@@ -7,6 +7,6 @@ const router = Router();
 
 router.get('/', listClinics);
 router.get('/:id', getClinic);
-router.post('/', requireAuth, requireRole('admin'), createClinic);
+router.post('/', requireAuth, requireRole(['admin', 'doctor']), createClinic);
 
 export default router;

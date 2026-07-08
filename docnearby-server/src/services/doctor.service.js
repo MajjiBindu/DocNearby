@@ -217,20 +217,28 @@ export const globalSearch = async (params) => {
   }).select("_id");
   const nearbyClinicIds = nearbyClinics.map(c => c._id);
 
-  // Combine into a single DB query using $or to avoid in-memory deduplication
   const geoOrClauses = [
     { clinicId: { $in: nearbyClinicIds } },
     {
       "availableSlots.coordinates": {
-        $near: {
-          $geometry: { type: "Point", coordinates: [Number(lng), Number(lat)] },
-          $maxDistance: Number(radius),
+        $geoWithin: {
+          $centerSphere: [[Number(lng), Number(lat)], Number(radius) / 6378137], // 6378137 is Earth radius in meters
         },
       },
     }
   ];
 
-  const finalQuery = { ...filterObj, $or: filterObj.$or ? [{ $or: filterObj.$or }, { $or: geoOrClauses }] : geoOrClauses };
+  const finalQuery = { ...filterObj };
+  // Combine into a single DB query using $and to intersect text search and geo search
+  if (filterObj.$or) {
+    delete finalQuery.$or;
+    finalQuery.$and = [
+      { $or: filterObj.$or },
+      { $or: geoOrClauses }
+    ];
+  } else {
+    finalQuery.$or = geoOrClauses;
+  }
 
   const deduplicated = await Doctor.find(finalQuery)
     .populate("userId", "name email role")

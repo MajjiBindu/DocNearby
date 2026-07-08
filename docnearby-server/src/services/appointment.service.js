@@ -3,6 +3,7 @@ import { Doctor } from '../models/Doctor.js';
 import AppError from '../utils/AppError.js';
 import * as emailService from './email.service.js';
 import { Notification } from '../models/Notification.js';
+import { parseAMPM } from '../utils/dateTime.js';
 
 export const create = async (patientData, appointmentData) => {
   const { doctorId, date, slot } = appointmentData;
@@ -44,7 +45,8 @@ export const create = async (patientData, appointmentData) => {
     throw new AppError('Doctor is not available on this day', 400);
   }
 
-  const appointmentTime = new Date(`${date}T${slot}:00.000`);
+  const parsedSlot = parseAMPM(slot);
+  const appointmentTime = new Date(`${date}T${parsedSlot}:00.000`);
   if (isNaN(appointmentTime.getTime())) {
     throw new AppError('Invalid slot format. Use HH:mm.', 400, 'invalid_slot');
   }
@@ -251,7 +253,8 @@ export const reschedule = async (appointmentId, newDate, newSlot, user) => {
     throw new AppError('Doctor is not available on this day', 400);
   }
 
-  const appointmentTime = new Date(`${newDate}T${newSlot}:00.000`);
+  const parsedNewSlot = parseAMPM(newSlot);
+  const appointmentTime = new Date(`${newDate}T${parsedNewSlot}:00.000`);
   if (isNaN(appointmentTime.getTime())) {
     throw new AppError('Invalid slot format. Use HH:mm.', 400, 'invalid_slot');
   }

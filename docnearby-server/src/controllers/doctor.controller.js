@@ -105,7 +105,9 @@ export const getDoctorSlots = asyncHandler(async (req, res) => {
     status: { $in: ["pending", "confirmed"] },
   }).select("slot");
 
-  const bookedSet = new Set(bookedAppointments.map((a) => a.slot));
+  const bookedSet = new Set(bookedAppointments.map((a) => {
+    return typeof a.slot === 'string' && !a.slot.includes(' ') ? formatAMPM(minutesFromHHMM(a.slot)) : a.slot;
+  }));
   const available = generated.filter((s) => !bookedSet.has(s));
 
   return sendResponse(res, 200, "Slots fetched successfully", { 
