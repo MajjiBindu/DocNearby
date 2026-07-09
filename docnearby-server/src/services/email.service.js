@@ -1,13 +1,11 @@
 import nodemailer from "nodemailer";
 
 const host = process.env.SMTP_HOST;
-const port = parseInt(process.env.SMTP_PORT, 10);
-const secure = process.env.SMTP_SECURE === "true";
 const user = process.env.SMTP_USER;
 const pass = process.env.SMTP_PASS;
 const fromEmail = process.env.EMAIL_FROM;
 
-if (!host || !port || !user || !pass || !fromEmail) {
+if (!host || !user || !pass || !fromEmail) {
   console.warn(
     "[WARNING] [EMAIL] Email service is missing some SMTP environment variables.",
   );
@@ -15,8 +13,8 @@ if (!host || !port || !user || !pass || !fromEmail) {
 
 const transporter = nodemailer.createTransport({
   host,
-  port,
-  secure,
+  port: 465,
+  secure: true,
   auth: { user, pass },
   connectionTimeout: 10000,
   greetingTimeout: 10000,
