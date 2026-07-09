@@ -6,7 +6,14 @@ dotenv.config();
 const PORT = process.env.PORT || 5000;
 
 function validateStartupEnv() {
-  const required = ["EMAIL_USER", "EMAIL_PASS", "JWT_SECRET"];
+  const required = [
+    "SMTP_HOST",
+    "SMTP_PORT",
+    "SMTP_USER",
+    "SMTP_PASS",
+    "EMAIL_FROM",
+    "JWT_SECRET",
+  ];
   const missing = required.filter((name) => !process.env[name]);
 
   if (missing.length) {
