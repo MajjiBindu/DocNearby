@@ -22,6 +22,7 @@ import { notFound, errorHandler } from "./middleware/error.middleware.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
 
 const app = express();
+app.set("trust proxy", 1); // Render sits behind a reverse proxy; needed for correct client IPs in rate limiting
 
 // Security Middleware
 app.use(helmet()); // Set security HTTP headers

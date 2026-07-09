@@ -14,12 +14,12 @@ if (!host || !user || !pass || !fromEmail) {
 const transporter = nodemailer.createTransport({
   host,
   port: 587,
-  secure: false, // STARTTLS
+  secure: false, // STARTTLS - port 465 implicit TLS times out from Render
+  family: 4, // force IPv4, avoids Render/Brevo IPv6 routing issues
   auth: { user, pass },
-  family: 4, // force IPv4
-  connectionTimeout: 5000,
-  greetingTimeout: 5000,
-  socketTimeout: 5000,
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
   logger: true,
   debug: true,
 });
