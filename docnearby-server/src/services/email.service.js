@@ -13,12 +13,13 @@ if (!host || !user || !pass || !fromEmail) {
 
 const transporter = nodemailer.createTransport({
   host,
-  port: 465,
-  secure: true,
+  port: 587,
+  secure: false, // STARTTLS
   auth: { user, pass },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 15000,
+  family: 4, // force IPv4
+  connectionTimeout: 5000,
+  greetingTimeout: 5000,
+  socketTimeout: 5000,
   logger: true,
   debug: true,
 });
