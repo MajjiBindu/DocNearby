@@ -1,38 +1,12 @@
-import nodemailer from "nodemailer";
+import axios from "axios";
 
-const host = process.env.SMTP_HOST;
-const user = process.env.SMTP_USER;
-const pass = process.env.SMTP_PASS;
 const fromEmail = process.env.EMAIL_FROM;
 
-if (!host || !user || !pass || !fromEmail) {
+if (!fromEmail || !process.env.BREVO_API_KEY) {
   console.warn(
-    "[WARNING] [EMAIL] Email service is missing some SMTP environment variables.",
+    "[WARNING] [EMAIL] Email service is missing EMAIL_FROM or BREVO_API_KEY environment variables.",
   );
 }
-
-const transporter = nodemailer.createTransport({
-  host,
-  port: 587,
-  secure: false, // STARTTLS - port 465 implicit TLS times out from Render
-  family: 4, // force IPv4, avoids Render/Brevo IPv6 routing issues
-  auth: { user, pass },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 15000,
-  logger: true,
-  debug: true,
-});
-
-// Verify transporter during startup
-transporter
-  .verify()
-  .then(() => {
-    console.log("[EMAIL] Transporter verified successfully and is ready.");
-  })
-  .catch((error) => {
-    console.error("[ERROR] [EMAIL] Transporter verification failed on startup:", error);
-  });
 
 function appointmentTemplate({ title, intro, details }) {
   const detailRows = Object.entries(details)
@@ -62,16 +36,33 @@ function appointmentTemplate({ title, intro, details }) {
 
 export async function sendEmail({ to, subject, html }) {
   try {
-    const from = `"DocNearby" <${fromEmail}>`;
+    const response = await axios.post(
+      "https://api.brevo.com/v3/smtp/email",
+      {
+        sender: { name: "DocNearby", email: fromEmail },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      },
+      {
+        headers: {
+          "api-key": process.env.BREVO_API_KEY,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      }
+    );
 
-    const result = await transporter.sendMail({ from, to, subject, html });
-    console.log("[EMAIL] sendMail success", {
+    console.log("[EMAIL] sendEmail success", {
       to,
-      messageId: result.messageId,
+      messageId: response.data?.messageId,
     });
-    return result;
+    return response.data;
   } catch (error) {
-    console.error("[ERROR] [EMAIL] Nodemailer sendMail failed:", error);
+    console.error(
+      "[ERROR] [EMAIL] HTTP sendEmail failed:",
+      error.response?.data || error.message
+    );
     throw new Error(`Failed to send email: ${error.message}`);
   }
 }
