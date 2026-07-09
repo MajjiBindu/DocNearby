@@ -1,27 +1,39 @@
 import nodemailer from "nodemailer";
 
-function createTransporter() {
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_PASS;
+const host = process.env.SMTP_HOST;
+const port = parseInt(process.env.SMTP_PORT, 10);
+const secure = process.env.SMTP_SECURE === "true";
+const user = process.env.SMTP_USER;
+const pass = process.env.SMTP_PASS;
+const fromEmail = process.env.EMAIL_FROM;
 
-  if (!user || !pass) {
-    throw new Error(
-      "Email service is not configured. EMAIL_USER and EMAIL_PASS are required.",
-    );
-  }
-
-  return nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: { user, pass },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-    logger: true,
-    debug: true,
-  });
+if (!host || !port || !user || !pass || !fromEmail) {
+  console.warn(
+    "[WARNING] [EMAIL] Email service is missing some SMTP environment variables.",
+  );
 }
+
+const transporter = nodemailer.createTransport({
+  host,
+  port,
+  secure,
+  auth: { user, pass },
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
+  logger: true,
+  debug: true,
+});
+
+// Verify transporter during startup
+transporter
+  .verify()
+  .then(() => {
+    console.log("[EMAIL] Transporter verified successfully and is ready.");
+  })
+  .catch((error) => {
+    console.error("[ERROR] [EMAIL] Transporter verification failed on startup:", error);
+  });
 
 function appointmentTemplate({ title, intro, details }) {
   const detailRows = Object.entries(details)
@@ -51,12 +63,7 @@ function appointmentTemplate({ title, intro, details }) {
 
 export async function sendEmail({ to, subject, html }) {
   try {
-    const transporter = createTransporter();
-    
-    // Verify transporter before sending
-    await transporter.verify();
-    
-    const from = `"DocNearby" <${process.env.EMAIL_USER}>`;
+    const from = `"DocNearby" <${fromEmail}>`;
 
     const result = await transporter.sendMail({ from, to, subject, html });
     console.log("[EMAIL] sendMail success", {
