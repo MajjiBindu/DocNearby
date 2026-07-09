@@ -11,8 +11,15 @@ function createTransporter() {
   }
 
   return nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
     auth: { user, pass },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    logger: true,
+    debug: true,
   });
 }
 
@@ -45,6 +52,10 @@ function appointmentTemplate({ title, intro, details }) {
 export async function sendEmail({ to, subject, html }) {
   try {
     const transporter = createTransporter();
+    
+    // Verify transporter before sending
+    await transporter.verify();
+    
     const from = `"DocNearby" <${process.env.EMAIL_USER}>`;
 
     const result = await transporter.sendMail({ from, to, subject, html });
@@ -54,7 +65,7 @@ export async function sendEmail({ to, subject, html }) {
     });
     return result;
   } catch (error) {
-    console.error("[ERROR] [EMAIL] Nodemailer sendMail failed:", error.message);
+    console.error("[ERROR] [EMAIL] Nodemailer sendMail failed:", error);
     throw new Error(`Failed to send email: ${error.message}`);
   }
 }
